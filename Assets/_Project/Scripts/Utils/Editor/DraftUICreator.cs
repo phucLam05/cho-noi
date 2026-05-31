@@ -109,20 +109,6 @@ namespace ChoNoiMienTay.Utils.Editor
             ui.inventoryDisplayText = invText;
             ui.statsDisplayText = statsText;
 
-            // Đăng ký sự kiện
-            btnBunRieu.onClick.AddListener(ui.BuyBunRieu);
-            btnSweetTalk.onClick.AddListener(ui.DoSweetTalk);
-            btnGift.onClick.AddListener(ui.GiveGiftKhom);
-
-            buyQuanAo.onClick.AddListener(ui.BuyQuanAo);
-            sellQuanAo.onClick.AddListener(ui.SellQuanAoWholesale);
-            
-            buyKhom.onClick.AddListener(ui.BuyKhom);
-            sellKhom.onClick.AddListener(ui.SellKhomWholesale);
-            
-            buyBiDao.onClick.AddListener(ui.BuyBiDao);
-            sellBiDao.onClick.AddListener(ui.SellBiDaoWholesale);
-
             Selection.activeGameObject = canvasGO;
             Debug.Log("[DraftUICreator] Đã tạo Canvas UI Tích Hợp Kinh Tế thành công!");
         }

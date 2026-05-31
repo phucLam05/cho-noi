@@ -36,7 +36,30 @@ namespace ChoNoiMienTay.UI
             if (playerStats == null) playerStats = FindObjectOfType<PlayerStats>();
             if (hagglingSystem == null) hagglingSystem = FindObjectOfType<HagglingSystem>();
 
+            BindButtons();
+
             UpdateUI();
+        }
+
+        private void BindButtons()
+        {
+            Button[] buttons = GetComponentsInChildren<Button>(true);
+            foreach (var btn in buttons)
+            {
+                btn.onClick.RemoveAllListeners(); // Xóa các listener cũ nếu có để tránh duplicate
+                switch (btn.name)
+                {
+                    case "BtnBunRieu": btn.onClick.AddListener(BuyBunRieu); break;
+                    case "BtnSweetTalk": btn.onClick.AddListener(DoSweetTalk); break;
+                    case "BtnGift": btn.onClick.AddListener(GiveGiftKhom); break;
+                    case "BuyQuanAo": btn.onClick.AddListener(BuyQuanAo); break;
+                    case "SellQuanAo": btn.onClick.AddListener(SellQuanAoWholesale); break;
+                    case "BuyKhom": btn.onClick.AddListener(BuyKhom); break;
+                    case "SellKhom": btn.onClick.AddListener(SellKhomWholesale); break;
+                    case "BuyBiDao": btn.onClick.AddListener(BuyBiDao); break;
+                    case "SellBiDao": btn.onClick.AddListener(SellBiDaoWholesale); break;
+                }
+            }
         }
 
         private void InitializeTestData()
