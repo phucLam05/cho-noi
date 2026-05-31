@@ -1,7 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
+using ChoNoiMienTay.Infrastructure;
 
-namespace ChoNoiMienTay.Gameplay
+namespace ChoNoiMienTay.Presentation
 {
     public class InventoryManager : MonoBehaviour
     {

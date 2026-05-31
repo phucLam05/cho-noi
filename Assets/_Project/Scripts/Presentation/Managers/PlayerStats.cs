@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace ChoNoiMienTay.Core
+namespace ChoNoiMienTay.Presentation
 {
     public class PlayerStats : MonoBehaviour
     {

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace ChoNoiMienTay.Gameplay
+namespace ChoNoiMienTay.Infrastructure
 {
     [CreateAssetMenu(fileName = "NewServiceData", menuName = "Cho Noi/Service Data", order = 2)]
     public class ServiceData : ScriptableObject

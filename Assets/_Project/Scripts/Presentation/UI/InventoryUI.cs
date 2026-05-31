@@ -1,10 +1,9 @@
 using UnityEngine;
 using UnityEngine.UI;
-using ChoNoiMienTay.Gameplay;
-using ChoNoiMienTay.Core;
+using ChoNoiMienTay.Infrastructure;
 using System.Text;
 
-namespace ChoNoiMienTay.UI
+namespace ChoNoiMienTay.Presentation
 {
     public class InventoryUI : MonoBehaviour
     {

@@ -1,7 +1,7 @@
 using UnityEngine;
-using ChoNoiMienTay.Core;
+using ChoNoiMienTay.Infrastructure;
 
-namespace ChoNoiMienTay.Gameplay
+namespace ChoNoiMienTay.Presentation
 {
     public class HagglingSystem : MonoBehaviour
     {

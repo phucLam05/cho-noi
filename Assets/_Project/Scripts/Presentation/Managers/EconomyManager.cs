@@ -1,7 +1,7 @@
 using UnityEngine;
-using ChoNoiMienTay.Gameplay;
+using ChoNoiMienTay.Infrastructure;
 
-namespace ChoNoiMienTay.Core
+namespace ChoNoiMienTay.Presentation
 {
     public class EconomyManager : MonoBehaviour
     {

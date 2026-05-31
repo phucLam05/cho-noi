@@ -3,11 +3,10 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
-using ChoNoiMienTay.UI;
-using ChoNoiMienTay.Gameplay;
-using ChoNoiMienTay.Core;
+using ChoNoiMienTay.Presentation;
+using ChoNoiMienTay.Infrastructure;
 
-namespace ChoNoiMienTay.Utils.Editor
+namespace ChoNoiMienTay.Editor
 {
     public class DraftUICreator
     {
