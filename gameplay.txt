@@ -1,0 +1,42 @@
+BẢN THIẾT KẾ TÍNH NĂNG & GAMEPLAY CỐT LÕI: CHỢ NỔI MIỀN TÂY
+Thể loại: 3D Simulation / Management / RPG Cấu trúc Game Loop: Phân cực Ngày/Đêm (Mô hình Management tương phản) Định hướng Kỹ thuật: Đồ họa 3D, lập trình C# áp dụng Clean Architecture để phân tách rành mạch logic kinh tế, UI và hệ thống vật lý.
+--------------------------------------------------------------------------------
+1. TỔNG QUAN VÒNG LẶP GAMEPLAY (CORE LOOP)
+Trò chơi xoay quanh chu kỳ sống và làm việc của một thương hồ miền Tây, chia làm hai giai đoạn đối lập nhưng phụ thuộc mật thiết vào nhau: Bán Hàng (Output) và Thu Mua/Bảo Trì (Input).
+Phase 1: Bình Minh Giao Thương (3:00 AM - 10:00 AM)
+Trọng tâm: Hành động tốc độ cao, cạnh tranh, tối đa hóa lợi nhuận.
+Lái Ghe Tranh Bến: Bắt đầu ngày mới trong điều kiện tầm nhìn hạn chế (sương mù, trời tối). Người chơi phải điều khiển ghe lách qua các chướng ngại vật (lục bình, ghe neo đậu) để chiếm vị trí tốt nhất giữa ngã ba/ngã bảy sông. Vị trí càng đẹp, lưu lượng (traffic) khách qua lại càng đông.
+Chiến Lược Cây Bẹo (Marketing): Treo các mặt hàng lên sào tre trước mũi ghe để định hướng đối tượng khách hàng. Treo khóm gọi lái sỉ khóm, treo quần áo gọi khách vãng lai.
+Cơ Chế Trả Giá (Haggling): Tương tác với NPC thương lái qua hệ thống "Thanh Thiện Cảm". Người chơi sử dụng điểm Thể lực (Stamina) để "nói ngọt" hoặc tốn nông sản để "tặng quà", nhằm đẩy giá chốt đơn lên mức cao nhất.
+Quản Lý Thể Lực: Gọi các ghe bán dạo (bún riêu, cà phê) để hồi phục Stamina phục vụ cho việc trả giá, đồng thời thu thập "tin đồn thị trường" từ NPC bán hàng.
+Phase 2: Chiều Tà Thu Mua & Trùng Tu (13:00 PM - 18:00 PM)
+Trọng tâm: Khám phá, quản lý tài nguyên, tính toán rủi ro và nâng cấp.
+Len Lỏi Kênh Rạch (Resource Gathering): Lái ghe rời sông lớn, tiến vào các con rạch nhỏ chằng chịt để tìm nhà vườn thu mua nông sản giá gốc.
+Yếu tố môi trường: Chịu ảnh hưởng bởi thủy triều (nước ròng làm kênh cạn, dễ mắc cạn gây hỏng ghe). Người chơi phải tính toán lượng nhiên liệu và rủi ro khi đi quá sâu vào rạch.
+Trại Ghe Xóm Nước (Upgrades & Maintenance): Điểm dừng chân bắt buộc trước khi về bến.
+Bảo trì: Mua vật liệu (nhựa đường, gỗ) để sửa chữa thanh Độ Bền (Durability) của ghe sau những va chạm buổi sáng. Ghe hỏng sẽ bị giảm tốc độ hoặc làm hỏng hàng hóa.
+Nâng cấp: Mở rộng khoang chứa (chở nhiều hàng hơn), nâng cấp động cơ (tăng tốc độ chạy đua buổi sáng), lợp mái che (bảo vệ hàng khỏi thời tiết), hoặc nâng cấp Cây Bẹo (treo nhiều hàng marketing hơn).
+Giao Lưu Xóm Làng: Dừng chân tại các quán cà phê võng ven sông, chi tiền hoặc vật phẩm để đổi lấy thông tin tình báo thị trường cho ngày mai (VD: "Mai thương lái cần gom nhiều bí đao").
+Phase 3: Chạng Vạng Chuẩn Bị (18:00 PM - 20:00 PM)
+Trọng tâm: Sắp xếp kho bãi và lên kế hoạch.
+Kiểm tra lại không gian khoang chứa hàng.
+Sắp xếp trước đội hình vật phẩm sẽ treo lên Cây Bẹo cho sáng hôm sau.
+Kết thúc ngày (Ngủ) để lưu game và chuyển sang chu kỳ mới.
+--------------------------------------------------------------------------------
+2. CÁC HỆ THỐNG CƠ BẢN ĐỂ TRIỂN KHAI MÃ NGUỒN (SYSTEM ARCHITECTURE)
+Để đảm bảo hiệu suất cao và dễ dàng mở rộng tính năng cho một đội ngũ nhỏ, mã nguồn C# cần được thiết kế độc lập (Decoupled) theo các module:
+Time & Weather System: Trái tim điều phối toàn bộ game. Hệ thống này quản lý đồng hồ in-game, kích hoạt sự thay đổi của ánh sáng (Directional Light), mật độ sương mù (Exponential Fog), và điều khiển chu kỳ thủy triều (làm thay đổi mesh/collider của mặt nước trong kênh rạch).
+Economy & Inventory System: Quản lý kho hàng trên ghe và ví tiền. Áp dụng các design pattern để tách biệt data của hàng hóa khỏi UI. Mọi giao dịch (mua bún, sửa ghe, chốt đơn sỉ) đều phải chạy qua một hệ thống giao dịch trung tâm để dễ dàng cân bằng game (Game Balancing) sau này.
+Boat Controller & Physics System: Xử lý vật lý của ghe. Độ nặng của hàng hóa (Inventory) sẽ tác động trực tiếp đến gia tốc và độ trễ khi bẻ lái của Boat Controller. Mức độ hao mòn (Durability) sẽ giới hạn vận tốc tối đa của động cơ.
+Dialogue & Event System: Hệ thống quản lý hội thoại và tin tức thị trường, dựa trên dữ liệu (Data-driven). Các sự kiện thị trường hoặc nhiệm vụ nhỏ từ NPC sẽ được lưu trong các file dữ liệu độc lập, hệ thống chỉ việc đọc và sinh ra NPC tương ứng trên sông.
+--------------------------------------------------------------------------------
+3. DANH SÁCH TÀI NGUYÊN 3D CẦN SẢN XUẤT (ASSET PIPELINE)
+Môi Trường (Environment): * Bản đồ Sông Lớn (mặt nước rộng, bến bãi neo đậu lớn).
+Bản đồ Kênh Rạch (hẹp, hai bên bờ có lá dừa nước, các trạm nhà vườn nhỏ).
+Vật cản: Lục bình, cọc tiêu, ghe hỏng.
+Thực Thể Có Thể Tương Tác (Interactables):
+Ghe người chơi (Cần thiết kế dạng modular: Thân ghe cơ bản, các module khoang chứa ép thêm, các loại máy đuôi tôm, sào tre Cây Bẹo rỗng để đính item lên).
+Ghe NPC (Ghe sỉ lớn, xuồng bán thức ăn dạo nhỏ).
+Vật Phẩm & UI (Items):
+Model 3D của các loại nông sản chính (Khóm, bí đao, củ sắn, lá lợp nhà, quần áo).
+Ảnh 2D (Avatar) của các NPC thương lái và người dân để phục vụ cho Minigame trả giá và hội thoại.
