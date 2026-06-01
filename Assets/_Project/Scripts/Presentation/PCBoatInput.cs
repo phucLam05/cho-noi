@@ -18,6 +18,12 @@ namespace ChoNoi.Presentation
         // Kéo thả file InputSystem_Actions.inputactions vào đây trong Inspector
         [SerializeField] private InputActionAsset inputActions;
 
+        public InputActionAsset InputActions
+        {
+            get => inputActions;
+            set => inputActions = value;
+        }
+
         private InputAction moveAction;
         private Vector2 moveInput;
 
@@ -35,6 +41,10 @@ namespace ChoNoi.Presentation
 
         private void OnEnable()
         {
+            if (inputActions != null)
+            {
+                inputActions.Enable();
+            }
             moveAction.Enable();
             moveAction.performed += OnMove;
             moveAction.canceled  += OnMove;
@@ -45,6 +55,10 @@ namespace ChoNoi.Presentation
             moveAction.performed -= OnMove;
             moveAction.canceled  -= OnMove;
             moveAction.Disable();
+            if (inputActions != null)
+            {
+                inputActions.Disable();
+            }
         }
 
         /// <summary>
@@ -53,6 +67,7 @@ namespace ChoNoi.Presentation
         private void OnMove(InputAction.CallbackContext context)
         {
             moveInput = context.ReadValue<Vector2>();
+            Debug.Log($"[PCBoatInput] Nhận input di chuyển: {moveInput}");
         }
     }
 }

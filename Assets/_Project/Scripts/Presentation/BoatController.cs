@@ -16,6 +16,12 @@ namespace ChoNoi.Presentation
     {
         [SerializeField] private BoatStats boatStats;
 
+        public BoatStats Stats
+        {
+            get => boatStats;
+            set => boatStats = value;
+        }
+
         private Rigidbody rb;
         private IBoatInput boatInput;
 
