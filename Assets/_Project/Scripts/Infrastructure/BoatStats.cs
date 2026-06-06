@@ -2,7 +2,7 @@
  * BoatStats: ScriptableObject chứa toàn bộ chỉ số vật lý của ghe.
  * [Chức năng]: Lưu trữ tham số cấu hình theo nguyên tắc Data-Driven.
  *              Mọi chỉ số đều chỉnh được trong Inspector, không hard-code.
- *              Gồm 4 nhóm: lực đẩy, lực cản nước, lực cản ngang, mô-men lái.
+ *              Gồm 6 nhóm: lực đẩy, lực cản nước, lực cản ngang, mô-men lái, tải trọng, vận tốc tối đa.
  * [Dependencies]: Không có.
  */
 
@@ -29,9 +29,21 @@ namespace ChoNoi.Infrastructure
         // Mô-men xoắn bẻ lái, nhân thêm vận tốc để ghe chỉ quay khi đang chạy
         [SerializeField] private float turnTorque = 3f;
 
-        public float ThrustForce  => thrustForce;
-        public float WaterDrag    => waterDrag;
-        public float SidewaysDrag => sidewaysDrag;
-        public float TurnTorque   => turnTorque;
+        [Header("Tải trọng")]
+        // Hệ số phạt hiệu suất tối đa khi ghe đầy tải (0-1).
+        // VD 0.4 = đầy hàng thì thrust/torque chỉ còn 60% (Performance = 1 - ratio*0.4).
+        [SerializeField, Range(0f, 1f)] private float maxPenaltyFactor = 0.4f;
+
+        [Header("Vận tốc tối đa")]
+        // Trần tốc độ (m/s) khi độ bền đầy. Độ bền giảm sẽ khóa trần này thấp xuống
+        // (tối thiểu 30%). Lưu ý: độ bền KHÔNG giảm thrustForce, chỉ giới hạn vận tốc.
+        [SerializeField] private float baseMaxSpeed = 10f;
+
+        public float ThrustForce      => thrustForce;
+        public float WaterDrag        => waterDrag;
+        public float SidewaysDrag     => sidewaysDrag;
+        public float TurnTorque       => turnTorque;
+        public float MaxPenaltyFactor => maxPenaltyFactor;
+        public float BaseMaxSpeed     => baseMaxSpeed;
     }
 }
