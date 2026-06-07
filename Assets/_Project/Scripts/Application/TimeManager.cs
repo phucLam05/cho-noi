@@ -37,8 +37,28 @@ namespace ChoNoi.Application
 
         public event Action<int, int> OnTimeChanged;
         public event Action<GamePhase> OnPhaseChanged;
+        public event Action OnSleep;
 
         public GamePhase CurrentPhase => currentPhase;
+
+        public void Sleep()
+        {
+            // Cho phép ngủ vào buổi tối hoặc chạng vạng
+            if (currentPhase == GamePhase.Dusk || currentPhase == GamePhase.Night)
+            {
+                Debug.Log("[TimeManager] Nhan vat di ngu. Chuyen sang ngay moi.");
+                OnSleep?.Invoke(); // Trigger save
+                
+                minutesOfDay = DawnHour * 60f;
+                lastMinute = -1; // Force time update
+                currentPhase = GamePhase.Dawn;
+                OnPhaseChanged?.Invoke(currentPhase);
+            }
+            else
+            {
+                Debug.LogWarning("[TimeManager] Chi co the ngu vao buoi toi hoac chang vang!");
+            }
+        }
 
         private void Start()
         {

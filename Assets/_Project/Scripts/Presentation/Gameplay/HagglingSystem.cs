@@ -20,9 +20,9 @@ namespace ChoNoiMienTay.Presentation
         
         private void Awake()
         {
-            if (playerStats == null) playerStats = FindObjectOfType<PlayerStats>();
-            if (economyManager == null) economyManager = FindObjectOfType<EconomyManager>();
-            if (inventoryManager == null) inventoryManager = FindObjectOfType<InventoryManager>();
+            if (playerStats == null) playerStats = FindFirstObjectByType<PlayerStats>();
+            if (economyManager == null) economyManager = FindFirstObjectByType<EconomyManager>();
+            if (inventoryManager == null) inventoryManager = FindFirstObjectByType<InventoryManager>();
         }
 
         public void StartSession()

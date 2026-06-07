@@ -35,12 +35,12 @@ namespace ChoNoi.Presentation
         private IBoatInput boatInput;
         // Nguồn cấp tỷ lệ tải trọng (tùy chọn). Null → ghe coi như trống, hiệu suất 100%.
         private IWeightProvider weightProvider;
-        // Nguồn cấp tỷ lệ độ bền (tùy chọn). Null → ghe coi như nguyên vẹn, trần tốc độ đầy.
         private IDurabilityProvider durabilityProvider;
         // True khi ghe đang chạm đáy sông (mắc cạn).
         private bool isGrounded;
 
         public bool IsGrounded => isGrounded;
+        public float EngineThrustMultiplier { get; set; } = 1f;
 
         private void Awake()
         {
@@ -124,8 +124,8 @@ namespace ChoNoi.Presentation
         /// <param name="performance">Hệ số hiệu suất [0,1] theo tải trọng (1 = đầy lực).</param>
         private void ApplyThrust(float throttle, float performance)
         {
-            // F_thrust = forward * throttle * thrustForce * performance
-            rb.AddForce(transform.forward * throttle * boatStats.ThrustForce * performance, ForceMode.Acceleration);
+            // F_thrust = forward * throttle * thrustForce * performance * engineThrustMultiplier
+            rb.AddForce(transform.forward * throttle * boatStats.ThrustForce * performance * EngineThrustMultiplier, ForceMode.Acceleration);
         }
 
         /// <summary>
