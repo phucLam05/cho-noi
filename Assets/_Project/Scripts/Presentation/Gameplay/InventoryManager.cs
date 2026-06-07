@@ -79,5 +79,22 @@ namespace ChoNoiMienTay.Presentation
                 return false;
             }
         }
+        public void ClearInventory()
+        {
+            inventory.Clear();
+            currentTotalWeight = 0f;
+        }
+
+        public void SetItemAmount(ItemData item, int amount)
+        {
+            if (item == null || amount <= 0) return;
+            inventory[item] = amount;
+            currentTotalWeight += item.weight * amount;
+        }
+
+        public void LoadCapacity(float capacity)
+        {
+            maxWeightCapacity = capacity;
+        }
     }
 }

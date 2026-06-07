@@ -12,7 +12,7 @@ namespace ChoNoiMienTay.Presentation
         {
             if (playerStats == null)
             {
-                playerStats = FindObjectOfType<PlayerStats>();
+                playerStats = FindFirstObjectByType<PlayerStats>();
             }
         }
 
@@ -22,6 +22,8 @@ namespace ChoNoiMienTay.Presentation
         public bool BuyService(ServiceData service)
         {
             if (service == null || playerStats == null) return false;
+
+            if (playerStats.CurrentMoney < 0 || service.costMoney < 0) return false;
 
             if (playerStats.DeductMoney(service.costMoney))
             {
@@ -49,7 +51,12 @@ namespace ChoNoiMienTay.Presentation
         {
             if (item == null || inventory == null || playerStats == null || amount <= 0) return false;
 
-            int totalCost = item.basePrice * amount;
+            long totalCostLong = (long)item.basePrice * amount;
+            if (totalCostLong > int.MaxValue || totalCostLong < 0) return false;
+            
+            int totalCost = (int)totalCostLong;
+
+            if (playerStats.CurrentMoney < 0) return false;
 
             // Kiểm tra ví tiền trước
             if (playerStats.CurrentMoney >= totalCost)

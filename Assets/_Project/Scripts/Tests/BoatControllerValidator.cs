@@ -255,7 +255,8 @@ namespace ChoNoi.Tests
         {
             LogHeader("CHAY TAT CA TEST");
             ValidateBoatStats();
-            if (Application.isPlaying)
+            // Qualify đầy đủ: namespace ChoNoi.Application che mất UnityEngine.Application.
+            if (UnityEngine.Application.isPlaying)
                 StartCoroutine(RunAllPhysicsTests());
             else
                 LogWarn("Test 2-4 can Play mode. Nhan Play roi click lai 'Chay Tat Ca Test'.");
@@ -293,7 +294,7 @@ namespace ChoNoi.Tests
         // Kiểm tra đang ở Play mode
         private bool RequirePlayMode(string testName)
         {
-            if (Application.isPlaying) return true;
+            if (UnityEngine.Application.isPlaying) return true;
             LogWarn($"{testName} can Play mode. Nhan nut Play roi chay lai.");
             return false;
         }
