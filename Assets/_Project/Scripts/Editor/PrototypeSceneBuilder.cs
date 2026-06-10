@@ -12,7 +12,7 @@ namespace ChoNoiMienTay.Editor
 {
     public class PrototypeSceneBuilder
     {
-        [MenuItem("Cho Noi/Tạo Môi Trường Thử Nghiệm")]
+        [MenuItem("ChoNoi/Scenes/Create Prototype Environment")]
         public static void CreatePrototypeEnvironment()
         {
             // 1. Tạo Scene mới và lưu vào thư mục Sandbox

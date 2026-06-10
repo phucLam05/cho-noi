@@ -15,7 +15,7 @@ namespace ChoNoi.Editor
     {
         private const string AssetPath = "Assets/_Project/BoatPhysicsMaterial.physicMaterial";
 
-        [MenuItem("ChoNoi/Create Boat PhysicMaterial")]
+        [MenuItem("ChoNoi/Physics/Create Boat PhysicMaterial")]
         public static void Create()
         {
             // Bounciness = 0: không nảy. Combine = Minimum: lấy giá trị nhỏ nhất giữa 2 vật

@@ -10,7 +10,7 @@ using UnityEngine;
 
 namespace ChoNoi.Infrastructure
 {
-    [CreateAssetMenu(fileName = "EnvironmentProfile", menuName = "ChoNoi/Environment Profile")]
+    [CreateAssetMenu(fileName = "EnvironmentProfile", menuName = "ChoNoi/Data/Environment Profile")]
     public class EnvironmentProfileSO : ScriptableObject
     {
         [Header("Ánh sáng (trục thời gian 0..1 = 0h..24h)")]

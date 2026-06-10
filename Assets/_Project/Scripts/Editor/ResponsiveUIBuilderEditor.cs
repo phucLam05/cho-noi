@@ -15,7 +15,7 @@ namespace ChoNoiMienTay.Editor
 {
     public static class ResponsiveUIBuilderEditor
     {
-        [MenuItem("ChoNoi/Build Responsive UI Canvas")]
+        [MenuItem("ChoNoi/UI/Build Responsive UI Canvas")]
         public static void BuildUI()
         {
             // 1. Tạo Canvas chính

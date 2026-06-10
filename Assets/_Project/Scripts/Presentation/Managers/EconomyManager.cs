@@ -1,5 +1,6 @@
 using UnityEngine;
 using ChoNoiMienTay.Infrastructure;
+using ChoNoi.Presentation;
 
 namespace ChoNoiMienTay.Presentation
 {
@@ -7,12 +8,18 @@ namespace ChoNoiMienTay.Presentation
     {
         [Header("References")]
         public PlayerStats playerStats;
+        public DurabilityManager durabilityManager;
         
         private void Awake()
         {
             if (playerStats == null)
             {
-                playerStats = FindFirstObjectByType<PlayerStats>();
+                playerStats = FindAnyObjectByType<PlayerStats>();
+            }
+
+            if (durabilityManager == null)
+            {
+                durabilityManager = FindAnyObjectByType<DurabilityManager>();
             }
         }
 
@@ -34,8 +41,14 @@ namespace ChoNoiMienTay.Presentation
                 
                 if (service.durabilityRestoreAmount > 0)
                 {
-                    // Tương lai: gọi BoatStats.RestoreDurability()
-                    Debug.Log($"[EconomyManager] Đã phục hồi {service.durabilityRestoreAmount} độ bền cho Ghe.");
+                    if (durabilityManager != null)
+                    {
+                        durabilityManager.RepairDurability(service.durabilityRestoreAmount);
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[EconomyManager] Khong tim thay DurabilityManager de sua ghe.");
+                    }
                 }
 
                 Debug.Log($"[EconomyManager] Giao dịch Dịch vụ thành công: {service.serviceName}");
@@ -82,7 +95,7 @@ namespace ChoNoiMienTay.Presentation
         /// </summary>
         public bool SellItemWholesale(ItemData item, int amount, InventoryManager inventory, int finalTotalRevenue)
         {
-            if (item == null || inventory == null || playerStats == null || amount <= 0) return false;
+            if (item == null || inventory == null || playerStats == null || amount <= 0 || finalTotalRevenue <= 0) return false;
 
             // Thử trừ đồ trong kho
             if (inventory.SellItem(item, amount))

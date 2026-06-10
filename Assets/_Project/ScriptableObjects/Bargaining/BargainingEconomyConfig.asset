@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e11a55abf5afab61a885f3477e6cf11b, type: 3}
+  m_Name: BargainingEconomyConfig
+  m_EditorClassIdentifier: Assembly-CSharp::ChoNoiMienTay.Data.BargainingEconomyConfig
+  staminaCostPerNegotiation: 8
+  offerStep: 500
+  agriculturalItems:
+  - item: {fileID: 11400000, guid: 3dbc1ba098fcc90e1b40f9bdaf644983, type: 2}
+    minPriceVariation: -2000
+    maxPriceVariation: 4000
+    startingInventoryAmount: 3
+  - item: {fileID: 11400000, guid: abfa0b823770b2e76a728dcd5c67bad6, type: 2}
+    minPriceVariation: -2500
+    maxPriceVariation: 4500
+    startingInventoryAmount: 3
+  - item: {fileID: 11400000, guid: 03241b08f15b7eda09af8220226c7297, type: 2}
+    minPriceVariation: -3000
+    maxPriceVariation: 5500
+    startingInventoryAmount: 2
+  - item: {fileID: 11400000, guid: 0ef7c4d4064bc4b7786ecf2b446b00af, type: 2}
+    minPriceVariation: -3500
+    maxPriceVariation: 6500
+    startingInventoryAmount: 2
+  - item: {fileID: 11400000, guid: 1422d624aa49e68ec80516195ebe99c7, type: 2}
+    minPriceVariation: -1500
+    maxPriceVariation: 3500
+    startingInventoryAmount: 4
+  npcProfiles:
+  - npcId: merchant
+    displayName: Merchant NPC
+    avatar: {fileID: 0}
+    openingPriceMultiplier: 0.92
+    maxAcceptPriceMultiplier: 1.1
+  - npcId: villager
+    displayName: Villager NPC
+    avatar: {fileID: 0}
+    openingPriceMultiplier: 0.85
+    maxAcceptPriceMultiplier: 1.02

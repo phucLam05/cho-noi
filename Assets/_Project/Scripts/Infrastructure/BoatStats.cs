@@ -10,7 +10,7 @@ using UnityEngine;
 
 namespace ChoNoi.Infrastructure
 {
-    [CreateAssetMenu(fileName = "BoatStats", menuName = "ChoNoi/Boat Stats")]
+    [CreateAssetMenu(fileName = "BoatStats", menuName = "ChoNoi/Data/Boat Stats")]
     public class BoatStats : ScriptableObject
     {
         [Header("Lực đẩy")]
@@ -29,6 +29,18 @@ namespace ChoNoi.Infrastructure
         // Mô-men xoắn bẻ lái, nhân thêm vận tốc để ghe chỉ quay khi đang chạy
         [SerializeField] private float turnTorque = 3f;
 
+        [Header("Dịch chuyển phụ")]
+        // Lực lướt ngang nhẹ để A/D vẫn tạo cảm giác ghe dịch 4 hướng, không chỉ quay tại chỗ.
+        [SerializeField] private float lateralThrust = 2.25f;
+
+        [Header("Độ trôi sông")]
+        // Hệ số cản khi người chơi đang có input đẩy ghe.
+        [SerializeField] private float activeDragFactor = 1f;
+        // Hệ số cản khi thả phím. Thấp hơn 1 -> ghe trôi thêm một đoạn rồi mới dừng.
+        [SerializeField] private float coastDragFactor = 0.45f;
+        // Dòng chảy nền của sông, áp theo trục world-space.
+        [SerializeField] private Vector3 riverCurrent = new Vector3(0.12f, 0f, 0.22f);
+
         [Header("Tải trọng")]
         // Hệ số phạt hiệu suất tối đa khi ghe đầy tải (0-1).
         // VD 0.4 = đầy hàng thì thrust/torque chỉ còn 60% (Performance = 1 - ratio*0.4).
@@ -43,6 +55,10 @@ namespace ChoNoi.Infrastructure
         public float WaterDrag        => waterDrag;
         public float SidewaysDrag     => sidewaysDrag;
         public float TurnTorque       => turnTorque;
+        public float LateralThrust    => lateralThrust;
+        public float ActiveDragFactor => activeDragFactor;
+        public float CoastDragFactor  => coastDragFactor;
+        public Vector3 RiverCurrent   => riverCurrent;
         public float MaxPenaltyFactor => maxPenaltyFactor;
         public float BaseMaxSpeed     => baseMaxSpeed;
     }

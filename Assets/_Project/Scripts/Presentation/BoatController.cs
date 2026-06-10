@@ -15,6 +15,7 @@
 using UnityEngine;
 using ChoNoi.Domain;
 using ChoNoi.Infrastructure;
+using ChoNoiMienTay.Presentation;
 
 namespace ChoNoi.Presentation
 {
@@ -36,6 +37,11 @@ namespace ChoNoi.Presentation
         [SerializeField, Range(0f, 1f)] private float groundedThrustPenalty = 0.05f;
         // Lực cản phụ rất lớn khi mắc cạn để mô phỏng ma sát với đáy sông.
         [SerializeField] private float groundedExtraDrag = 8f;
+        [Header("Do Ben & On Dinh")]
+        [SerializeField] private float durabilityWearPerSpeed = 0.012f;
+        [SerializeField] private float collisionDamageMultiplier = 1.4f;
+        [SerializeField] private float maxStableVerticalSpeed = 3.5f;
+        [SerializeField] private float maxAngularSpeed = 1.85f;
 
         private Rigidbody rb;
         private IBoatInput boatInput;
@@ -44,8 +50,9 @@ namespace ChoNoi.Presentation
         private IDurabilityProvider durabilityProvider;
         // True khi ghe đang chạm đáy sông (mắc cạn).
         private bool isGrounded;
+        private bool wasGrounded;
 
-        public bool IsGrounded => isGrounded;
+        public bool IsGrounded => wasGrounded;
         public float EngineThrustMultiplier { get; set; } = 1f;
 
         private void Awake()
@@ -56,6 +63,13 @@ namespace ChoNoi.Presentation
             weightProvider = GetComponent<IWeightProvider>();
             durabilityProvider = GetComponent<IDurabilityProvider>();
 
+            // Fallback cho scene hiện tại: nếu provider không nằm trên cùng ghe thì lấy manager dùng chung trong scene.
+            if (weightProvider == null)
+                weightProvider = FindAnyObjectByType<InventoryManager>();
+
+            if (durabilityProvider == null)
+                durabilityProvider = FindAnyObjectByType<DurabilityManager>();
+
             // Chống xuyên tường (tunneling) khi ghe chạy nhanh — bắt buộc theo physics-tuning-rules.
             rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
             // Chỉ cho xoay quanh trục Y → va chạm không làm ghe lật úp / văng lên trời.
@@ -64,30 +78,87 @@ namespace ChoNoi.Presentation
 
         private void FixedUpdate()
         {
+            if (rb == null || boatStats == null)
+                return;
+
+            if (boatInput == null)
+            {
+                boatInput = GetComponent<IBoatInput>();
+                if (boatInput == null)
+                    return;
+            }
+
+            // Cập nhật trạng thái mắc cạn thực tế từ frame vật lý trước
+            wasGrounded = isGrounded;
+            isGrounded = false;
+
             // Bước 0: Tính hệ số suy giảm hiệu suất theo tải trọng (1 lần / FixedUpdate).
             // WeightRatio ∈ [0,1]; Performance = 1 - ratio*MaxPenaltyFactor (đầy tải → tối thiểu).
             // dragMul: chở nặng làm lực cản nước tăng nhẹ (tối đa +50% khi đầy tải).
-            float weightRatio = weightProvider != null
-                ? Mathf.Clamp01(weightProvider.GetCurrentWeightRatio())
-                : 0f;
-            float performance = 1f - weightRatio * boatStats.MaxPenaltyFactor;
+            float weightRatio = 0f;
+            if (weightProvider != null)
+            {
+                try
+                {
+                    weightRatio = Mathf.Clamp01(weightProvider.GetCurrentWeightRatio());
+                }
+                catch
+                {
+                    weightProvider = FindAnyObjectByType<InventoryManager>();
+                    weightRatio = weightProvider != null ? Mathf.Clamp01(weightProvider.GetCurrentWeightRatio()) : 0f;
+                }
+            }
+            float basePerformance = 1f - weightRatio * boatStats.MaxPenaltyFactor;
             float dragMultiplier = 1f + weightRatio * 0.5f;
 
-            // Mắc cạn: nhân thêm groundedThrustPenalty (chỉ khi grounded, không thì = 1).
-            if (isGrounded)
-                performance *= groundedThrustPenalty;
+            float throttle = 0f;
+            float steering = 0f;
+            try
+            {
+                throttle = boatInput.Throttle;
+                steering = boatInput.Steering;
+            }
+            catch
+            {
+                boatInput = GetComponent<IBoatInput>();
+                if (boatInput == null)
+                    return;
 
-            ApplyThrust(boatInput.Throttle, performance);
+                throttle = boatInput.Throttle;
+                steering = boatInput.Steering;
+            }
+
+            // Tách hiệu suất đẩy và lái để hỗ trợ người chơi thoát mắc cạn khi đi lùi hoặc bẻ lái
+            float thrustPerformance = basePerformance;
+            float steeringPerformance = basePerformance;
+
+            if (wasGrounded)
+            {
+                // Nếu đi lùi (lùi ra khỏi vùng cạn), cho phép sử dụng ít nhất 50% công suất động cơ
+                if (throttle < 0f)
+                    thrustPerformance *= Mathf.Max(groundedThrustPenalty, 0.5f);
+                else
+                    thrustPerformance *= groundedThrustPenalty;
+
+                // Cho phép bẻ lái với ít nhất 40% công suất để có thể hướng đầu ghe ra vùng nước sâu
+                steeringPerformance *= Mathf.Max(groundedThrustPenalty, 0.4f);
+            }
+
+            ApplyThrust(throttle, thrustPerformance);
             ApplyWaterDrag(dragMultiplier);
+            ApplyRiverCurrent();
+            ApplyLateralDrift(throttle, steering, steeringPerformance);
             ApplySidewaysResistance();
-            ApplySteering(boatInput.Steering, performance);
+            ApplySteering(steering, steeringPerformance);
 
             // Ma sát đáy sông: lực cản phụ ngược chiều vận tốc khi mắc cạn.
-            if (isGrounded)
+            if (wasGrounded)
                 rb.AddForce(-rb.linearVelocity * groundedExtraDrag, ForceMode.Acceleration);
 
             // Bước 5 (Phase 4) - Khóa trần vận tốc theo độ bền (SAU mọi lực).
             ClampVelocityByDurability();
+            ApplyDurabilityWear();
+            StabilizePhysics();
         }
 
         /// <summary>
@@ -109,7 +180,30 @@ namespace ChoNoi.Presentation
         private void OnCollisionStay(Collision collision)
         {
             if (IsRiverbed(collision.gameObject.layer))
-                isGrounded = true;
+            {
+                // Chỉ coi là mắc cạn nếu pháp tuyến tiếp xúc hướng lên trên (đáy sông nâng ghe)
+                foreach (ContactPoint contact in collision.contacts)
+                {
+                    if (contact.normal.y > 0.5f)
+                    {
+                        isGrounded = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        private void OnCollisionEnter(Collision collision)
+        {
+            DurabilityManager durabilityManager = durabilityProvider as DurabilityManager;
+            if (durabilityManager == null)
+                return;
+
+            float impactStrength = collision.relativeVelocity.magnitude;
+            if (impactStrength < 1.5f)
+                return;
+
+            durabilityManager.ReduceDurability(impactStrength * collisionDamageMultiplier);
         }
 
         // Rời khỏi đáy sông (nước dâng lại) -> hết mắc cạn.
@@ -141,8 +235,13 @@ namespace ChoNoi.Presentation
         /// <param name="dragMultiplier">Hệ số nhân lực cản theo tải trọng (≥ 1).</param>
         private void ApplyWaterDrag(float dragMultiplier)
         {
+            float throttleMagnitude = boatInput != null ? Mathf.Abs(boatInput.Throttle) : 0f;
+            float steeringMagnitude = boatInput != null ? Mathf.Abs(boatInput.Steering) : 0f;
+            float inputMagnitude = Mathf.Clamp01(Mathf.Max(throttleMagnitude, steeringMagnitude));
+            float coastFactor = Mathf.Lerp(boatStats.CoastDragFactor, boatStats.ActiveDragFactor, inputMagnitude);
+
             // F_resistance = -velocity * waterDrag * dragMultiplier
-            Vector3 resistance = -rb.linearVelocity * boatStats.WaterDrag * dragMultiplier;
+            Vector3 resistance = -rb.linearVelocity * boatStats.WaterDrag * dragMultiplier * coastFactor;
             rb.AddForce(resistance, ForceMode.Acceleration);
         }
 
@@ -171,9 +270,48 @@ namespace ChoNoi.Presentation
         {
             // T_steer = up * steering * turnTorque * |velocity| * performance
             rb.AddTorque(
-                transform.up * steering * boatStats.TurnTorque * rb.linearVelocity.magnitude * performance,
+                transform.up * steering * boatStats.TurnTorque * Mathf.Max(rb.linearVelocity.magnitude, 1.35f) * performance,
                 ForceMode.Acceleration
             );
+        }
+
+        private void ApplyRiverCurrent()
+        {
+            rb.AddForce(boatStats.RiverCurrent, ForceMode.Acceleration);
+        }
+
+        private void ApplyLateralDrift(float throttle, float steering, float performance)
+        {
+            float lateralInput = steering;
+            if (Mathf.Abs(lateralInput) < 0.01f)
+                return;
+
+            rb.AddForce(transform.right * lateralInput * boatStats.LateralThrust * performance, ForceMode.Acceleration);
+        }
+
+        private void ApplyDurabilityWear()
+        {
+            DurabilityManager durabilityManager = durabilityProvider as DurabilityManager;
+            if (durabilityManager == null)
+                return;
+
+            float speedWear = rb.linearVelocity.magnitude * durabilityWearPerSpeed * Time.fixedDeltaTime;
+            if (wasGrounded)
+                speedWear *= 1.8f;
+
+            durabilityManager.ReduceDurability(speedWear);
+        }
+
+        private void StabilizePhysics()
+        {
+            Vector3 velocity = rb.linearVelocity;
+            velocity.y = Mathf.Clamp(velocity.y, -maxStableVerticalSpeed, maxStableVerticalSpeed);
+            rb.linearVelocity = velocity;
+
+            if (rb.angularVelocity.magnitude > maxAngularSpeed)
+            {
+                rb.angularVelocity = rb.angularVelocity.normalized * maxAngularSpeed;
+            }
         }
     }
 }

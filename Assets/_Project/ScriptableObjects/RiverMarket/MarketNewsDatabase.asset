@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ba95199ac6e41a60a81a971845fe9c3c, type: 3}
+  m_Name: MarketNewsDatabase
+  m_EditorClassIdentifier: Assembly-CSharp::ChoNoiMienTay.Infrastructure.MarketNewsDatabaseSO
+  entries:
+  - dayNumber: 1
+    npcName: Merchant NPC
+    npcAvatar: {fileID: 0}
+    headline: Khach tu Chau Doc dang san khom dep.
+    marketRumor: 'Ngay 1: thuong lai rat chuong khom va cam ngon, gia mo cua se cao
+      vao buoi sang.'
+  - dayNumber: 2
+    npcName: Villager NPC
+    npcAvatar: {fileID: 0}
+    headline: Dan lang can mua bi dao va dua hau de dua cho.
+    marketRumor: 'Ngay 2: cac ghe nho tra gia chat hon, nhung rat de mua dua hau
+      cuoi ngay.'
+  - dayNumber: 3
+    npcName: Merchant NPC
+    npcAvatar: {fileID: 0}
+    headline: Tin don co con nuoc rong som.
+    marketRumor: 'Ngay 3: nuoc len cao luc rang dong, ghe de luon rach hep; hang
+      nang duoc gia hon neu giao som.'

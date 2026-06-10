@@ -19,6 +19,7 @@ namespace ChoNoi.Infrastructure
     [Serializable]
     public class GameSaveData
     {
+        public int currentDay;
         public int currentMoney;
         public float currentStamina;
         public float maxStamina;
@@ -27,6 +28,7 @@ namespace ChoNoi.Infrastructure
         public float maxWeightCapacity;
         public List<InventoryItemSaveData> inventoryItems = new List<InventoryItemSaveData>();
 
+        public int storageLevel;
         public bool hasRoof;
         public int bambooPoleLevel;
         public int engineLevel;
@@ -80,6 +82,7 @@ namespace ChoNoi.Infrastructure
 
             if (playerStats != null)
             {
+                data.currentDay = timeManager != null ? timeManager.CurrentDay : 1;
                 data.currentMoney = playerStats.CurrentMoney;
                 data.currentStamina = playerStats.CurrentStamina;
                 data.maxStamina = playerStats.MaxStamina;
@@ -101,6 +104,7 @@ namespace ChoNoi.Infrastructure
 
             if (boatCampManager != null)
             {
+                data.storageLevel = boatCampManager.storageLevel;
                 data.hasRoof = boatCampManager.hasRoof;
                 data.bambooPoleLevel = boatCampManager.bambooPoleLevel;
                 data.engineLevel = boatCampManager.engineLevel;
@@ -139,6 +143,7 @@ namespace ChoNoi.Infrastructure
             if (!File.Exists(SavePath))
             {
                 Debug.Log("[SaveLoadManager] No save file found. Starting fresh.");
+                SeedFreshGame();
                 return;
             }
 
@@ -162,6 +167,11 @@ namespace ChoNoi.Infrastructure
                 playerStats.LoadStats(data.currentMoney, data.currentStamina, data.maxStamina, data.maxBonusPriceRatio);
             }
 
+            if (timeManager != null)
+            {
+                timeManager.LoadDay(data.currentDay);
+            }
+
             if (inventoryManager != null)
             {
                 inventoryManager.LoadCapacity(data.maxWeightCapacity);
@@ -182,7 +192,7 @@ namespace ChoNoi.Infrastructure
             if (boatCampManager != null)
             {
                 float thrust = data.engineThrustMultiplier > 0 ? data.engineThrustMultiplier : 1f;
-                boatCampManager.LoadData(data.hasRoof, data.bambooPoleLevel, data.engineLevel, thrust);
+                boatCampManager.LoadData(data.storageLevel, data.hasRoof, data.bambooPoleLevel, data.engineLevel, thrust);
             }
 
             if (bambooPoleManager != null)
@@ -205,6 +215,31 @@ namespace ChoNoi.Infrastructure
             }
 
             Debug.Log("[SaveLoadManager] Game Loaded successfully.");
+        }
+
+        private void SeedFreshGame()
+        {
+            if (inventoryManager == null || masterItemDatabase == null || masterItemDatabase.Count == 0)
+            {
+                return;
+            }
+
+            inventoryManager.ClearInventory();
+
+            if (masterItemDatabase.Count > 0 && masterItemDatabase[0] != null)
+            {
+                inventoryManager.BuyItem(masterItemDatabase[0], 3);
+            }
+
+            if (masterItemDatabase.Count > 1 && masterItemDatabase[1] != null)
+            {
+                inventoryManager.BuyItem(masterItemDatabase[1], 2);
+            }
+
+            if (masterItemDatabase.Count > 2 && masterItemDatabase[2] != null)
+            {
+                inventoryManager.BuyItem(masterItemDatabase[2], 1);
+            }
         }
     }
 }

@@ -38,8 +38,10 @@ namespace ChoNoi.Application
         public event Action<int, int> OnTimeChanged;
         public event Action<GamePhase> OnPhaseChanged;
         public event Action OnSleep;
+        public event Action<int> OnDayChanged;
 
         public GamePhase CurrentPhase => currentPhase;
+        public int CurrentDay { get; private set; } = 1;
 
         public void Sleep()
         {
@@ -48,16 +50,25 @@ namespace ChoNoi.Application
             {
                 Debug.Log("[TimeManager] Nhan vat di ngu. Chuyen sang ngay moi.");
                 OnSleep?.Invoke(); // Trigger save
-                
+
+                CurrentDay++;
                 minutesOfDay = DawnHour * 60f;
                 lastMinute = -1; // Force time update
                 currentPhase = GamePhase.Dawn;
+                OnDayChanged?.Invoke(CurrentDay);
+                OnTimeChanged?.Invoke(Hour, Minute);
                 OnPhaseChanged?.Invoke(currentPhase);
             }
             else
             {
                 Debug.LogWarning("[TimeManager] Chi co the ngu vao buoi toi hoac chang vang!");
             }
+        }
+
+        public void LoadDay(int savedDay)
+        {
+            CurrentDay = Mathf.Max(1, savedDay);
+            OnDayChanged?.Invoke(CurrentDay);
         }
 
         private void Start()
@@ -69,6 +80,7 @@ namespace ChoNoi.Application
 
             OnTimeChanged?.Invoke(Hour, Minute);
             OnPhaseChanged?.Invoke(currentPhase);
+            OnDayChanged?.Invoke(CurrentDay);
             lastMinute = Minute;
         }
 

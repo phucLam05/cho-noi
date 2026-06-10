@@ -18,7 +18,7 @@ namespace ChoNoi.Editor
         private static int _failed;
 
         // Có thể gọi từ menu Unity Editor: ChoNoi > Run Tests
-        [MenuItem("ChoNoi/Run All Tests")]
+        [MenuItem("ChoNoi/Tests/Run All Tests")]
         public static void RunFromMenu() => Run();
 
         /// <summary>
