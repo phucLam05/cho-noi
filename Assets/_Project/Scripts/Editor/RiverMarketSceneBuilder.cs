@@ -9,6 +9,8 @@ using ChoNoi.Application;
 using ChoNoi.Infrastructure;
 using ChoNoi.Presentation;
 using ChoNoi.Presentation.Environment;
+using ChoNoi.Presentation.NPC;
+using ChoNoi.Presentation.Player;
 using ChoNoiMienTay.Infrastructure;
 using ChoNoiMienTay.Presentation;
 using ChoNoiMienTay.UI;
@@ -26,6 +28,7 @@ namespace ChoNoiMienTay.Editor
         private const string MerchantAvatarPath = "Assets/_Project/Art/Avatars/merchant.png";
         private const string VillagerAvatarPath = "Assets/_Project/Art/Avatars/villager.png";
         private const string BoatModelPath = "Assets/_Project/Art/Models/thuyencoban.fbx";
+        private const string NpcModelPath = "Assets/_Project/Art/Models/nvatdemo.fbx";
         private const string BargainingItemsFolder = "Assets/_Project/ScriptableObjects/Bargaining/Items";
 
         [MenuItem("ChoNoi/Scenes/Build River Market Scene")]
@@ -56,6 +59,7 @@ namespace ChoNoiMienTay.Editor
             BuildNpcBoats(worldRoot.transform);
             BuildRiverLife(worldRoot.transform);
             BuildEnvironmentAssets(worldRoot.transform, terrain);
+            BuildAmbientNpcCrowd(worldRoot.transform, terrain);
 
             GameObject systemsRoot = new GameObject("GameSystems");
             TimeManager timeManager = systemsRoot.AddComponent<TimeManager>();
@@ -67,7 +71,8 @@ namespace ChoNoiMienTay.Editor
             SaveLoadManager saveLoadManager = systemsRoot.AddComponent<SaveLoadManager>();
 
             GameObject boat = BuildBoat(worldRoot.transform, boatStats, waterPlane.transform);
-            AttachFollowCamera(boat.transform);
+            GameObject shorePlayer = BuildShorePlayer(worldRoot.transform, boat);
+            BoatFollowCamera followCamera = AttachFollowCamera(shorePlayer.transform);
             BoatCampManager boatCampManager = boat.AddComponent<BoatCampManager>();
             BambooPoleManager bambooPoleManager = boat.AddComponent<BambooPoleManager>();
             boatCampManager.GetType().GetField("upgradeCatalog", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.SetValue(boatCampManager, upgradeCatalog);
@@ -78,6 +83,7 @@ namespace ChoNoiMienTay.Editor
             bambooPoleManager.GetType().GetField("inventoryManager", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.SetValue(bambooPoleManager, inventoryManager);
 
             SetupBoatVisualModules(boatCampManager, boat.transform);
+            SetupBoardingFlow(shorePlayer, boat, followCamera);
 
             EnvironmentController environmentController = systemsRoot.AddComponent<EnvironmentController>();
             environmentController.GetType().GetField("timeManager", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.SetValue(environmentController, timeManager);
@@ -256,7 +262,6 @@ namespace ChoNoiMienTay.Editor
                 "Assets/_Project/Art/model_mau/Cay/palm_trees.glb",
                 "Assets/_Project/Art/model_mau/Cay/mango_tree.glb",
                 "Assets/_Project/Art/model_mau/Cay/tree_elm.glb",
-                "Assets/_Project/Art/model_mau/Cay/tree_for_games.glb",
                 "Assets/_Project/Art/model_mau/Cay/small_trees.glb"
             };
 
@@ -274,17 +279,17 @@ namespace ChoNoiMienTay.Editor
             Random.InitState(42); // Seed cố định để sinh ngẫu nhiên nhưng ổn định giữa các lần build
 
             // Tọa độ định nghĩa sông ngòi để tránh đặt cây đè lên sông
-            Vector2 mainStart = new Vector2(90f, 0f);
-            Vector2 junction = new Vector2(90f, 82f);
-            Vector2 leftForkEnd = new Vector2(20f, 180f);
-            Vector2 rightForkEnd = new Vector2(160f, 180f);
-            float mainHalfWidth = 21f;
-            float forkHalfWidth = 13f;
+            Vector2 mainStart = new Vector2(120f, 0f);
+            Vector2 junction = new Vector2(120f, 92f);
+            Vector2 leftForkEnd = new Vector2(36f, 220f);
+            Vector2 rightForkEnd = new Vector2(204f, 220f);
+            float mainHalfWidth = 18f;
+            float forkHalfWidth = 14f;
 
             // Rải cây cối trên đất liền dọc theo 2 bên bờ sông
-            for (float x = 10f; x <= 170f; x += 12f)
+            for (float x = 12f; x <= 228f; x += 14f)
             {
-                for (float z = 10f; z <= 170f; z += 12f)
+                for (float z = 12f; z <= 208f; z += 14f)
                 {
                     // Thêm độ lệch ngẫu nhiên nhẹ để phân bố trông tự nhiên
                     float posX = x + Random.Range(-4f, 4f);
@@ -296,8 +301,12 @@ namespace ChoNoiMienTay.Editor
                     float dRight = DistanceToSegment(point, junction, rightForkEnd);
 
                     // Nếu vị trí là đất liền (nằm ngoài phạm vi sông + biên an toàn)
-                    if (dMain > mainHalfWidth + 3f && dLeft > forkHalfWidth + 3f && dRight > forkHalfWidth + 3f)
+                    if (dMain > mainHalfWidth + 8f && dLeft > forkHalfWidth + 8f && dRight > forkHalfWidth + 8f)
                     {
+                        // Giu khu spawn va hanh lang camera thong thoang, tranh cay moc sat mat nguoi choi.
+                        if (posX > 48f && posX < 108f && posZ < 72f)
+                            continue;
+
                         float posY = terrain.SampleHeight(new Vector3(posX, 0f, posZ));
                         
                         // Chọn loại cây. Ưu tiên cây dừa (palm_trees) ở gần mép bờ sông hơn
@@ -318,14 +327,14 @@ namespace ChoNoiMienTay.Editor
                                 treeInstance.transform.SetParent(envGroup.transform);
                                 treeInstance.transform.position = new Vector3(posX, posY, posZ);
                                 treeInstance.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+                                ApplyTreeOrientationFix(treeInstance, path);
 
                                 // Điều chỉnh tỉ lệ tương thích cho từng loại cây
                                 float scaleMultiplier = 1f;
-                                if (path.Contains("palm_trees")) scaleMultiplier = Random.Range(1.8f, 2.5f);
-                                else if (path.Contains("mango_tree")) scaleMultiplier = Random.Range(0.6f, 0.9f);
-                                else if (path.Contains("tree_elm")) scaleMultiplier = Random.Range(0.8f, 1.2f);
-                                else if (path.Contains("tree_for_games")) scaleMultiplier = Random.Range(1f, 1.4f);
-                                else if (path.Contains("small_trees")) scaleMultiplier = Random.Range(1.2f, 1.8f);
+                                if (path.Contains("palm_trees")) scaleMultiplier = Random.Range(0.62f, 0.86f);
+                                else if (path.Contains("mango_tree")) scaleMultiplier = Random.Range(0.38f, 0.58f);
+                                else if (path.Contains("tree_elm")) scaleMultiplier = Random.Range(0.42f, 0.62f);
+                                else if (path.Contains("small_trees")) scaleMultiplier = Random.Range(0.55f, 0.82f);
 
                                 treeInstance.transform.localScale = Vector3.one * scaleMultiplier;
                             }
@@ -338,8 +347,8 @@ namespace ChoNoiMienTay.Editor
             // Mặt nước có Y cố định khoảng 4f. Ưu tiên rải lục bình tụ lại dọc theo ven bờ sông (vùng nước nông)
             for (int i = 0; i < 45; i++)
             {
-                float posX = Random.Range(15f, 165f);
-                float posZ = Random.Range(15f, 165f);
+                float posX = Random.Range(30f, 210f);
+                float posZ = Random.Range(25f, 205f);
                 Vector2 point = new Vector2(posX, posZ);
 
                 float dMain = DistanceToSegment(point, mainStart, junction);
@@ -393,33 +402,46 @@ namespace ChoNoiMienTay.Editor
             TerrainData terrainData = new TerrainData
             {
                 heightmapResolution = 513,
-                size = new Vector3(180f, 18f, 180f)
+                size = new Vector3(240f, 18f, 220f)
             };
 
             float[,] heights = new float[terrainData.heightmapResolution, terrainData.heightmapResolution];
             int res = terrainData.heightmapResolution;
-            Vector2 mainStart = new Vector2(90f, 0f);
-            Vector2 junction = new Vector2(90f, 82f);
-            Vector2 leftForkEnd = new Vector2(20f, 180f);
-            Vector2 rightForkEnd = new Vector2(160f, 180f);
-            float baseHeight = 0.30f;
-            float riverBed = 0.08f;
-            float mainHalfWidth = 21f;
-            float forkHalfWidth = 13f;
+            Vector2 mainStart = new Vector2(120f, 0f);
+            Vector2 junction = new Vector2(120f, 92f);
+            Vector2 leftForkEnd = new Vector2(36f, 220f);
+            Vector2 rightForkEnd = new Vector2(204f, 220f);
+            float baseHeight = 0.23f;
+            float riverBed = 0.015f;
+            float mainHalfWidth = 18f;
+            float forkHalfWidth = 14f;
+            float bankBlendWidth = 28f;
 
             for (int row = 0; row < res; row++)
             {
                 for (int col = 0; col < res; col++)
                 {
-                    Vector2 point = new Vector2((float)col / (res - 1) * 180f, (float)row / (res - 1) * 180f);
+                    Vector2 point = new Vector2((float)col / (res - 1) * terrainData.size.x, (float)row / (res - 1) * terrainData.size.z);
                     float dMain = DistanceToSegment(point, mainStart, junction);
                     float dLeft = DistanceToSegment(point, junction, leftForkEnd);
                     float dRight = DistanceToSegment(point, junction, rightForkEnd);
-                    float carve = 0f;
-                    if (dMain < mainHalfWidth) carve = Mathf.Max(carve, (1f - dMain / mainHalfWidth) * (baseHeight - riverBed));
-                    if (dLeft < forkHalfWidth) carve = Mathf.Max(carve, (1f - dLeft / forkHalfWidth) * (baseHeight - riverBed));
-                    if (dRight < forkHalfWidth) carve = Mathf.Max(carve, (1f - dRight / forkHalfWidth) * (baseHeight - riverBed));
-                    heights[row, col] = baseHeight - carve;
+                    float riverBlend = 0f;
+                    riverBlend = Mathf.Max(riverBlend, 1f - Mathf.SmoothStep(0f, bankBlendWidth, Mathf.Max(0f, dMain - mainHalfWidth)));
+                    riverBlend = Mathf.Max(riverBlend, 1f - Mathf.SmoothStep(0f, bankBlendWidth, Mathf.Max(0f, dLeft - forkHalfWidth)));
+                    riverBlend = Mathf.Max(riverBlend, 1f - Mathf.SmoothStep(0f, bankBlendWidth, Mathf.Max(0f, dRight - forkHalfWidth)));
+
+                    float shoreNoise = Mathf.PerlinNoise(point.x * 0.025f, point.y * 0.025f) * 0.018f;
+                    float height = Mathf.Lerp(baseHeight + shoreNoise, riverBed, riverBlend);
+
+                    // Khu bờ spawn phẳng, rộng để người chơi bắt đầu đi bộ trước khi lên ghe.
+                    if (point.y < 52f && point.x < 112f)
+                        height = Mathf.Lerp(height, baseHeight - 0.02f, 0.92f);
+
+                    // Mo them hanh lang tam nhin o khu spawn de camera khong bi vach dat xam chan mat.
+                    if (point.y < 78f && point.x > 70f && point.x < 132f)
+                        height = Mathf.Min(height, baseHeight - 0.035f);
+
+                    heights[row, col] = height;
                 }
             }
 
@@ -436,8 +458,8 @@ namespace ChoNoiMienTay.Editor
             GameObject water = GameObject.CreatePrimitive(PrimitiveType.Plane);
             water.name = "WaterSurface";
             water.transform.SetParent(parent);
-            water.transform.position = new Vector3(90f, 4f, 90f);
-            water.transform.localScale = new Vector3(18f, 1f, 18f);
+            water.transform.position = new Vector3(120f, 3.35f, 110f);
+            water.transform.localScale = new Vector3(24f, 1f, 22f);
 
             // MeshCollider from Primitive Plane is concave and doesn't support trigger, disable it
             MeshCollider meshCol = water.GetComponent<MeshCollider>();
@@ -461,9 +483,9 @@ namespace ChoNoiMienTay.Editor
             GameObject obstacles = new GameObject("RiverObstacles");
             obstacles.transform.SetParent(parent);
 
-            CreateObstacle(obstacles.transform, "HyacinthPatch", PrimitiveType.Sphere, new Vector3(74f, 2.3f, 105f), new Vector3(3f, 0.35f, 2.5f), new Color(0.20f, 0.55f, 0.25f), true);
-            CreateObstacle(obstacles.transform, "WoodPost", PrimitiveType.Cylinder, new Vector3(112f, 2.7f, 76f), new Vector3(0.4f, 2.4f, 0.4f), new Color(0.36f, 0.23f, 0.13f), false);
-            CreateObstacle(obstacles.transform, "BrokenBoat", PrimitiveType.Cube, new Vector3(58f, 2.5f, 136f), new Vector3(4f, 0.8f, 1.6f), new Color(0.25f, 0.25f, 0.25f), false);
+            CreateObstacle(obstacles.transform, "HyacinthPatch", PrimitiveType.Sphere, new Vector3(103f, 3.25f, 122f), new Vector3(3f, 0.35f, 2.5f), new Color(0.20f, 0.55f, 0.25f), true);
+            CreateObstacle(obstacles.transform, "WoodPost", PrimitiveType.Cylinder, new Vector3(139f, 3.4f, 84f), new Vector3(0.4f, 2.4f, 0.4f), new Color(0.36f, 0.23f, 0.13f), false);
+            CreateObstacle(obstacles.transform, "BrokenBoat", PrimitiveType.Cube, new Vector3(73f, 3.35f, 154f), new Vector3(4f, 0.8f, 1.6f), new Color(0.25f, 0.25f, 0.25f), false);
         }
 
         private static void BuildNpcBoats(Transform parent)
@@ -471,8 +493,8 @@ namespace ChoNoiMienTay.Editor
             GameObject npcRoot = new GameObject("NpcBoats");
             npcRoot.transform.SetParent(parent);
 
-            BuildNpcBoat(npcRoot.transform, "MerchantLargeBoat", new Vector3(106f, 4.35f, 108f), new Vector3(3.6f, 0.9f, 8.4f), new Color(0.48f, 0.20f, 0.12f), true);
-            BuildNpcBoat(npcRoot.transform, "FoodVendorSmallBoat", new Vector3(64f, 4.2f, 86f), new Vector3(2.0f, 0.6f, 4.2f), new Color(0.20f, 0.34f, 0.52f), false);
+            BuildNpcBoat(npcRoot.transform, "MerchantLargeBoat", new Vector3(140f, 3.55f, 118f), new Vector3(3.6f, 0.9f, 8.4f), new Color(0.48f, 0.20f, 0.12f), true);
+            BuildNpcBoat(npcRoot.transform, "FoodVendorSmallBoat", new Vector3(111f, 3.45f, 84f), new Vector3(2.0f, 0.6f, 4.2f), new Color(0.20f, 0.34f, 0.52f), false);
         }
 
         private static void BuildNpcBoat(Transform parent, string name, Vector3 position, Vector3 hullScale, Color hullColor, bool isLargeBoat)
@@ -483,8 +505,30 @@ namespace ChoNoiMienTay.Editor
             boatRoot.transform.rotation = Quaternion.Euler(0f, isLargeBoat ? -20f : 35f, 0f);
             boatRoot.AddComponent<AmbientBob>();
 
-            GameObject hull = CreatePrimitiveChild(boatRoot.transform, "Hull", PrimitiveType.Cube, new Vector3(0f, 0f, 0f), hullScale, hullColor);
-            hull.GetComponent<Collider>().enabled = false;
+            string modelPath = isLargeBoat
+                ? "Assets/_Project/Art/model_mau/tauchokhach/tauchokhach (1).glb"
+                : "Assets/_Project/Art/model_mau/taubanhang/hủ tiếu/hủ tiếu (1).glb";
+            GameObject modelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(modelPath);
+                if (modelPrefab != null)
+                {
+                    GameObject model = PrefabUtility.InstantiatePrefab(modelPrefab) as GameObject;
+                    if (model != null)
+                    {
+                        model.name = isLargeBoat ? "LargeBoatModel" : "VendorBoatModel";
+                        model.transform.SetParent(boatRoot.transform, false);
+                        model.transform.localPosition = Vector3.zero;
+                        model.transform.localRotation = Quaternion.identity;
+                        model.transform.localScale = Vector3.one * (isLargeBoat ? 1.6f : 1.25f);
+                        ApplyBoatOrientationFix(model);
+                        DisableColliders(model);
+                    }
+                }
+            else
+            {
+                GameObject hull = CreatePrimitiveChild(boatRoot.transform, "Hull", PrimitiveType.Cube, new Vector3(0f, 0f, 0f), hullScale, hullColor);
+                hull.GetComponent<Collider>().enabled = false;
+            }
+
             GameObject canopy = CreatePrimitiveChild(boatRoot.transform, "Canopy", PrimitiveType.Cube, new Vector3(0f, 1.0f, 0f), new Vector3(hullScale.x * 0.85f, 0.14f, hullScale.z * 0.5f), isLargeBoat ? new Color(0.82f, 0.72f, 0.32f) : new Color(0.85f, 0.42f, 0.22f));
             canopy.GetComponent<Collider>().enabled = false;
             GameObject mast = CreatePrimitiveChild(boatRoot.transform, "Pole", PrimitiveType.Cylinder, new Vector3(hullScale.x * 0.28f, 1.2f, 0.6f), new Vector3(0.08f, 1.15f, 0.08f), new Color(0.58f, 0.46f, 0.26f));
@@ -502,6 +546,11 @@ namespace ChoNoiMienTay.Editor
                 GameObject soupPot = CreatePrimitiveChild(boatRoot.transform, "SoupPot", PrimitiveType.Sphere, new Vector3(0f, 0.7f, -0.4f), new Vector3(0.8f, 0.45f, 0.8f), new Color(0.16f, 0.16f, 0.18f));
                 soupPot.GetComponent<Collider>().enabled = false;
             }
+
+            GameObject npc = CreateNpcAvatar(boatRoot.transform, isLargeBoat ? "MerchantNpcOnBoat" : "VendorNpcOnBoat", new Vector3(0f, 1.35f, 0.9f), new Color(0.88f, 0.68f, 0.48f));
+            SimpleNpcWander wander = npc.AddComponent<SimpleNpcWander>();
+            wander.Configure(new[] { new Vector3(-0.55f, 0f, -0.65f), new Vector3(0.55f, 0f, 0.65f) }, isLargeBoat ? 0.45f : 0.35f);
+            AddTradeTarget(npc, isLargeBoat ? "Thuong Lai" : "Ghe Ban Hang", 3.1f);
         }
 
         private static void BuildRiverLife(Transform parent)
@@ -509,9 +558,80 @@ namespace ChoNoiMienTay.Editor
             GameObject lifeRoot = new GameObject("RiverLife");
             lifeRoot.transform.SetParent(parent);
 
-            CreateReedCluster(lifeRoot.transform, "LeftBankReeds", new Vector3(49f, 3.1f, 92f), 5);
-            CreateReedCluster(lifeRoot.transform, "RightBankReeds", new Vector3(132f, 3.1f, 68f), 6);
-            CreateMistBand(lifeRoot.transform, "MorningMist", new Vector3(92f, 5.1f, 118f), new Vector3(14f, 0.7f, 5f));
+            CreateReedCluster(lifeRoot.transform, "LeftBankReeds", new Vector3(83f, 3.2f, 88f), 5);
+            CreateReedCluster(lifeRoot.transform, "RightBankReeds", new Vector3(157f, 3.2f, 74f), 6);
+            CreateMistBand(lifeRoot.transform, "MorningMist", new Vector3(121f, 4.6f, 128f), new Vector3(14f, 0.7f, 5f));
+        }
+
+        private static void BuildAmbientNpcCrowd(Transform parent, Terrain terrain)
+        {
+            GameObject npcRoot = new GameObject("AmbientNpcs");
+            npcRoot.transform.SetParent(parent);
+
+            CreateAmbientNpc(npcRoot.transform, terrain, "DockWorker_A", new Vector3(70f, 0f, 52f), new[]
+            {
+                new Vector3(0f, 0f, 0f),
+                new Vector3(6f, 0f, 2f),
+                new Vector3(3f, 0f, 7f),
+                new Vector3(-2f, 0f, 4f)
+            }, 1.15f);
+
+            CreateAmbientNpc(npcRoot.transform, terrain, "DockWorker_B", new Vector3(88f, 0f, 60f), new[]
+            {
+                new Vector3(0f, 0f, 0f),
+                new Vector3(5f, 0f, -1f),
+                new Vector3(7f, 0f, 5f),
+                new Vector3(1f, 0f, 6f)
+            }, 1.05f);
+
+            CreateAmbientNpc(npcRoot.transform, terrain, "Trader_A", new Vector3(104f, 0f, 72f), new[]
+            {
+                new Vector3(0f, 0f, 0f),
+                new Vector3(4f, 0f, 3f),
+                new Vector3(-3f, 0f, 5f),
+                new Vector3(-5f, 0f, -2f)
+            }, 1.10f);
+
+            CreateAmbientNpc(npcRoot.transform, terrain, "Trader_B", new Vector3(132f, 0f, 72f), new[]
+            {
+                new Vector3(0f, 0f, 0f),
+                new Vector3(4f, 0f, 4f),
+                new Vector3(-4f, 0f, 6f),
+                new Vector3(-2f, 0f, -3f)
+            }, 1.08f);
+
+            CreateAmbientNpc(npcRoot.transform, terrain, "Villager_A", new Vector3(154f, 0f, 66f), new[]
+            {
+                new Vector3(0f, 0f, 0f),
+                new Vector3(6f, 0f, 3f),
+                new Vector3(2f, 0f, 8f),
+                new Vector3(-4f, 0f, 5f)
+            }, 0.96f);
+
+            CreateAmbientNpc(npcRoot.transform, terrain, "Villager_B", new Vector3(170f, 0f, 96f), new[]
+            {
+                new Vector3(0f, 0f, 0f),
+                new Vector3(5f, 0f, 2f),
+                new Vector3(2f, 0f, 7f),
+                new Vector3(-3f, 0f, 4f)
+            }, 0.92f);
+
+            CreateAmbientNpc(npcRoot.transform, terrain, "Villager_C", new Vector3(58f, 0f, 110f), new[]
+            {
+                new Vector3(0f, 0f, 0f),
+                new Vector3(7f, 0f, 2f),
+                new Vector3(5f, 0f, 7f),
+                new Vector3(-1f, 0f, 8f)
+            }, 1.02f);
+        }
+
+        private static void CreateAmbientNpc(Transform parent, Terrain terrain, string name, Vector3 worldSeedPosition, Vector3[] localWaypoints, float speed)
+        {
+            float y = terrain != null ? terrain.SampleHeight(worldSeedPosition) : worldSeedPosition.y;
+            GameObject npc = CreateNpcAvatar(parent, name, new Vector3(worldSeedPosition.x, y, worldSeedPosition.z), new Color(0.72f, 0.42f, 0.32f));
+            SimpleNpcWander wander = npc.AddComponent<SimpleNpcWander>();
+            wander.Configure(localWaypoints, speed);
+            AddTradeTarget(npc, name.Replace("_", " "), 3f);
         }
 
         private static void CreateReedCluster(Transform parent, string name, Vector3 center, int count)
@@ -548,7 +668,8 @@ namespace ChoNoiMienTay.Editor
         {
             GameObject boat = new GameObject("PlayerBoat");
             boat.transform.SetParent(parent);
-            boat.transform.position = new Vector3(90f, 4.6f, 24f);
+            boat.transform.position = new Vector3(118f, 3.75f, 34f);
+            boat.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
             boat.AddComponent<BoxCollider>().size = new Vector3(1.8f, 1.2f, 5.4f);
 
             Rigidbody rb = boat.AddComponent<Rigidbody>();
@@ -580,6 +701,7 @@ namespace ChoNoiMienTay.Editor
                     modelInstance.transform.SetParent(visualRoot.transform, false);
                     modelInstance.transform.localScale = new Vector3(458f, 458f, 458f);
                     modelInstance.transform.localPosition = new Vector3(0f, 0.1f, 0f);
+                    ApplyBoatOrientationFix(modelInstance);
                 }
             }
             else
@@ -588,6 +710,68 @@ namespace ChoNoiMienTay.Editor
             }
 
             return boat;
+        }
+
+        private static GameObject BuildShorePlayer(Transform parent, GameObject boat)
+        {
+            GameObject player = new GameObject("PlayerOnFoot");
+            player.transform.SetParent(parent);
+            player.transform.position = new Vector3(92f, 4.25f, 25f);
+            player.transform.rotation = Quaternion.Euler(0f, 80f, 0f);
+
+            CharacterController controller = player.AddComponent<CharacterController>();
+            controller.height = 1.8f;
+            controller.radius = 0.35f;
+            controller.center = new Vector3(0f, 0.9f, 0f);
+
+            ShorePlayerController shoreController = player.AddComponent<ShorePlayerController>();
+            player.AddComponent<PlayerNpcTradeInteractor>();
+
+            GameObject visualRoot = new GameObject("PlayerVisualRoot");
+            visualRoot.transform.SetParent(player.transform, false);
+            CreatePrimitiveChild(visualRoot.transform, "Body", PrimitiveType.Capsule, new Vector3(0f, 0.9f, 0f), new Vector3(0.55f, 0.9f, 0.55f), new Color(0.24f, 0.36f, 0.50f));
+            CreatePrimitiveChild(visualRoot.transform, "Hat", PrimitiveType.Cylinder, new Vector3(0f, 1.85f, 0f), new Vector3(0.42f, 0.08f, 0.42f), new Color(0.82f, 0.68f, 0.36f));
+
+            GameObject shoreVillager = CreateNpcAvatar(parent, "ShoreVillagerNpc", new Vector3(78f, 4.25f, 38f), new Color(0.72f, 0.42f, 0.32f));
+            shoreVillager.AddComponent<SimpleNpcWander>()
+                .Configure(new[] { new Vector3(0f, 0f, 0f), new Vector3(8f, 0f, 3f), new Vector3(2f, 0f, 8f), new Vector3(-5f, 0f, 4f) }, 1.1f);
+            AddTradeTarget(shoreVillager, "Dan Lang", 3.2f);
+
+            Transform standPoint = CreateMarker(boat.transform, "PlayerStandPoint", new Vector3(0f, 1.35f, -0.4f), Quaternion.identity);
+            Transform dismountPoint = CreateMarker(boat.transform, "DismountPoint", new Vector3(-24f, 0.5f, -6f), Quaternion.Euler(0f, 80f, 0f));
+
+            BoatBoardingController boarding = player.AddComponent<BoatBoardingController>();
+            boarding.Configure(
+                shoreController,
+                visualRoot.transform,
+                boat.transform,
+                standPoint,
+                dismountPoint,
+                boat.GetComponent<BoatController>(),
+                boat.GetComponent<PCBoatInput>(),
+                Camera.main != null ? Camera.main.GetComponent<BoatFollowCamera>() : null);
+
+            return player;
+        }
+
+        private static void SetupBoardingFlow(GameObject player, GameObject boat, BoatFollowCamera followCamera)
+        {
+            if (player == null || boat == null)
+                return;
+
+            BoatBoardingController boarding = player.GetComponent<BoatBoardingController>();
+            if (boarding == null)
+                return;
+
+            boarding.Configure(
+                player.GetComponent<ShorePlayerController>(),
+                player.transform.Find("PlayerVisualRoot"),
+                boat.transform,
+                boat.transform.Find("PlayerStandPoint"),
+                boat.transform.Find("DismountPoint"),
+                boat.GetComponent<BoatController>(),
+                boat.GetComponent<PCBoatInput>(),
+                followCamera);
         }
 
         private static void SetupBoatVisualModules(BoatCampManager boatCampManager, Transform boat)
@@ -620,21 +804,24 @@ namespace ChoNoiMienTay.Editor
         {
             Camera cam = Camera.main;
             if (cam == null) return;
-            cam.transform.position = new Vector3(90f, 18f, 2f);
-            cam.transform.rotation = Quaternion.Euler(28f, 0f, 0f);
+            cam.transform.position = new Vector3(92f, 8.5f, 12f);
+            cam.transform.rotation = Quaternion.Euler(24f, 0f, 0f);
+            cam.fieldOfView = 58f;
+            cam.nearClipPlane = 0.1f;
         }
 
-        private static void AttachFollowCamera(Transform boat)
+        private static BoatFollowCamera AttachFollowCamera(Transform target)
         {
             Camera cam = Camera.main;
-            if (cam == null || boat == null) return;
+            if (cam == null || target == null) return null;
             BoatFollowCamera followCamera = cam.GetComponent<BoatFollowCamera>();
             if (followCamera == null)
             {
                 followCamera = cam.gameObject.AddComponent<BoatFollowCamera>();
             }
 
-            followCamera.Configure(boat);
+            followCamera.Configure(target);
+            return followCamera;
         }
 
         private static void ConfigureSaveLoad(
@@ -756,6 +943,84 @@ namespace ChoNoiMienTay.Editor
             child.transform.localScale = localScale;
             ApplyColorMaterial(child.GetComponent<Renderer>(), color);
             return child;
+        }
+
+        private static GameObject CreateNpcAvatar(Transform parent, string name, Vector3 localPosition, Color tunicColor)
+        {
+            GameObject npc = new GameObject(name);
+            npc.transform.SetParent(parent, false);
+            npc.transform.localPosition = localPosition;
+
+            GameObject npcModelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(NpcModelPath);
+            if (npcModelPrefab != null)
+            {
+                GameObject model = PrefabUtility.InstantiatePrefab(npcModelPrefab) as GameObject;
+                if (model != null)
+                {
+                    model.name = "NpcModel";
+                    model.transform.SetParent(npc.transform, false);
+                    model.transform.localPosition = Vector3.zero;
+                    model.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+                    model.transform.localScale = Vector3.one * 110f;
+                    DisableColliders(model);
+                    return npc;
+                }
+            }
+
+            GameObject body = CreatePrimitiveChild(npc.transform, "Body", PrimitiveType.Capsule, new Vector3(0f, 0.8f, 0f), new Vector3(0.42f, 0.75f, 0.42f), tunicColor);
+            GameObject head = CreatePrimitiveChild(npc.transform, "Head", PrimitiveType.Sphere, new Vector3(0f, 1.55f, 0f), new Vector3(0.34f, 0.34f, 0.34f), new Color(0.88f, 0.68f, 0.48f));
+            GameObject hat = CreatePrimitiveChild(npc.transform, "ConicalHat", PrimitiveType.Cylinder, new Vector3(0f, 1.9f, 0f), new Vector3(0.55f, 0.07f, 0.55f), new Color(0.84f, 0.72f, 0.44f));
+
+            body.GetComponent<Collider>().enabled = false;
+            head.GetComponent<Collider>().enabled = false;
+            hat.GetComponent<Collider>().enabled = false;
+            return npc;
+        }
+
+        private static Transform CreateMarker(Transform parent, string name, Vector3 localPosition, Quaternion localRotation)
+        {
+            GameObject marker = new GameObject(name);
+            marker.transform.SetParent(parent, false);
+            marker.transform.localPosition = localPosition;
+            marker.transform.localRotation = localRotation;
+            return marker.transform;
+        }
+
+        private static void DisableColliders(GameObject root)
+        {
+            Collider[] colliders = root.GetComponentsInChildren<Collider>(true);
+            foreach (Collider collider in colliders)
+                collider.enabled = false;
+        }
+
+        private static void AddTradeTarget(GameObject npcRoot, string displayName, float radius)
+        {
+            if (npcRoot == null)
+                return;
+
+            NpcTradeTarget target = npcRoot.GetComponent<NpcTradeTarget>();
+            if (target == null)
+                target = npcRoot.AddComponent<NpcTradeTarget>();
+
+            target.Configure(displayName, radius);
+        }
+
+        private static void ApplyTreeOrientationFix(GameObject treeInstance, string assetPath)
+        {
+            if (treeInstance == null)
+                return;
+
+            Quaternion correction = Quaternion.identity;
+            if (assetPath.Contains("palm_trees") || assetPath.Contains("mango_tree") || assetPath.Contains("tree_elm") || assetPath.Contains("small_trees"))
+                correction = Quaternion.Euler(-90f, 0f, 0f);
+
+            treeInstance.transform.rotation = treeInstance.transform.rotation * correction;
+        }
+
+        private static void ApplyBoatOrientationFix(GameObject boatInstance)
+        {
+            if (boatInstance == null)
+                return;
         }
 
         private static void ApplyColorMaterial(Renderer renderer, Color color)

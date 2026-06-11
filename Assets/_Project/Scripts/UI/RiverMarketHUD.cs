@@ -27,8 +27,16 @@ namespace ChoNoiMienTay.UI
         private Text newsText;
         private Text newsNpcNameText;
         private Text tradeText;
+        private Text tradeTitleText;
         private Image newsAvatarImage;
+        private GameObject upgradePanel;
+        private GameObject tradePanel;
+        private GameObject newsPanel;
         private int selectedMarketIndex;
+        private bool isNpcTradeOpen;
+        private string currentTradeNpcName = "Thuong Lai";
+
+        public bool IsNpcTradeOpen => isNpcTradeOpen;
 
         public void Configure(
             TimeManager timeSource,
@@ -129,63 +137,68 @@ namespace ChoNoiMienTay.UI
             GameObject topBar = CreatePanel("TopBar", canvasObject.transform, new Color(0f, 0f, 0f, 0.65f));
             Stretch(topBar.GetComponent<RectTransform>(), new Vector2(0.02f, 0.90f), new Vector2(0.98f, 0.98f));
             statusText = CreateText("StatusText", topBar.transform, 24, TextAnchor.MiddleLeft);
-            Stretch(statusText.rectTransform, new Vector2(0.02f, 0.15f), new Vector2(0.98f, 0.85f));
+            Stretch(statusText.rectTransform, new Vector2(0.02f, 0.15f), new Vector2(0.72f, 0.85f));
 
-            GameObject leftPanel = CreatePanel("UpgradePanel", canvasObject.transform, new Color(0.08f, 0.16f, 0.18f, 0.86f));
-            Stretch(leftPanel.GetComponent<RectTransform>(), new Vector2(0.02f, 0.08f), new Vector2(0.26f, 0.86f));
-            CreateText("UpgradeTitle", leftPanel.transform, 26, TextAnchor.MiddleCenter).text = "TRAI GHE XOM NUOC";
-            Stretch(leftPanel.transform.Find("UpgradeTitle").GetComponent<RectTransform>(), new Vector2(0.06f, 0.86f), new Vector2(0.94f, 0.96f));
+            CreateActionButton(topBar.transform, "Trai Ghe", new Vector2(0.74f, 0.18f), new Vector2(0.81f, 0.82f), ToggleUpgradePanel);
+            CreateActionButton(topBar.transform, "Cho", new Vector2(0.825f, 0.18f), new Vector2(0.885f, 0.82f), ToggleTradePanel);
+            CreateActionButton(topBar.transform, "Tin Don", new Vector2(0.90f, 0.18f), new Vector2(0.98f, 0.82f), ToggleNewsPanel);
 
-            upgradeText = CreateText("UpgradeText", leftPanel.transform, 22, TextAnchor.UpperLeft);
+            upgradePanel = CreatePanel("UpgradePanel", canvasObject.transform, new Color(0.08f, 0.16f, 0.18f, 0.86f));
+            Stretch(upgradePanel.GetComponent<RectTransform>(), new Vector2(0.02f, 0.08f), new Vector2(0.26f, 0.86f));
+            CreateText("UpgradeTitle", upgradePanel.transform, 26, TextAnchor.MiddleCenter).text = "TRAI GHE XOM NUOC";
+            Stretch(upgradePanel.transform.Find("UpgradeTitle").GetComponent<RectTransform>(), new Vector2(0.06f, 0.86f), new Vector2(0.94f, 0.96f));
+
+            upgradeText = CreateText("UpgradeText", upgradePanel.transform, 22, TextAnchor.UpperLeft);
             Stretch(upgradeText.rectTransform, new Vector2(0.08f, 0.47f), new Vector2(0.92f, 0.82f));
 
-            CreateActionButton(leftPanel.transform, "Khoang Chua", new Vector2(0.08f, 0.33f), new Vector2(0.92f, 0.41f), () =>
+            CreateActionButton(upgradePanel.transform, "Khoang Chua", new Vector2(0.08f, 0.33f), new Vector2(0.92f, 0.41f), () =>
             {
                 if (boatCampManager != null && boatCampManager.TryBuyNextStorageUpgrade()) RefreshAll();
             });
-            CreateActionButton(leftPanel.transform, "Dong Co", new Vector2(0.08f, 0.23f), new Vector2(0.92f, 0.31f), () =>
+            CreateActionButton(upgradePanel.transform, "Dong Co", new Vector2(0.08f, 0.23f), new Vector2(0.92f, 0.31f), () =>
             {
                 if (boatCampManager != null && boatCampManager.TryBuyNextEngineUpgrade()) RefreshAll();
             });
-            CreateActionButton(leftPanel.transform, "Lop Mai", new Vector2(0.08f, 0.13f), new Vector2(0.92f, 0.21f), () =>
+            CreateActionButton(upgradePanel.transform, "Lop Mai", new Vector2(0.08f, 0.13f), new Vector2(0.92f, 0.21f), () =>
             {
                 if (boatCampManager != null && boatCampManager.TryBuyRoofUpgrade()) RefreshAll();
             });
-            CreateActionButton(leftPanel.transform, "Cay Beo", new Vector2(0.08f, 0.03f), new Vector2(0.92f, 0.11f), () =>
+            CreateActionButton(upgradePanel.transform, "Cay Beo", new Vector2(0.08f, 0.03f), new Vector2(0.92f, 0.11f), () =>
             {
                 if (boatCampManager != null && boatCampManager.TryBuyNextBambooPoleUpgrade()) RefreshAll();
             });
 
-            GameObject centerPanel = CreatePanel("TradePanel", canvasObject.transform, new Color(0.12f, 0.12f, 0.08f, 0.88f));
-            Stretch(centerPanel.GetComponent<RectTransform>(), new Vector2(0.31f, 0.08f), new Vector2(0.69f, 0.44f));
-            CreateText("TradeTitle", centerPanel.transform, 24, TextAnchor.MiddleCenter).text = "CHO NOI TRUNG TAM";
-            Stretch(centerPanel.transform.Find("TradeTitle").GetComponent<RectTransform>(), new Vector2(0.06f, 0.86f), new Vector2(0.94f, 0.96f));
+            tradePanel = CreatePanel("TradePanel", canvasObject.transform, new Color(0.12f, 0.12f, 0.08f, 0.88f));
+            Stretch(tradePanel.GetComponent<RectTransform>(), new Vector2(0.31f, 0.08f), new Vector2(0.69f, 0.44f));
+            tradeTitleText = CreateText("TradeTitle", tradePanel.transform, 24, TextAnchor.MiddleCenter);
+            tradeTitleText.text = "CHO NOI TRUNG TAM";
+            Stretch(tradeTitleText.rectTransform, new Vector2(0.06f, 0.86f), new Vector2(0.94f, 0.96f));
 
-            tradeText = CreateText("TradeText", centerPanel.transform, 20, TextAnchor.UpperLeft);
+            tradeText = CreateText("TradeText", tradePanel.transform, 20, TextAnchor.UpperLeft);
             Stretch(tradeText.rectTransform, new Vector2(0.08f, 0.48f), new Vector2(0.92f, 0.82f));
 
-            CreateActionButton(centerPanel.transform, "Mat Hang Truoc", new Vector2(0.08f, 0.34f), new Vector2(0.44f, 0.42f), SelectPreviousItem);
-            CreateActionButton(centerPanel.transform, "Mat Hang Sau", new Vector2(0.56f, 0.34f), new Vector2(0.92f, 0.42f), SelectNextItem);
-            CreateActionButton(centerPanel.transform, "Mua 1", new Vector2(0.08f, 0.22f), new Vector2(0.44f, 0.30f), BuySelectedItem);
-            CreateActionButton(centerPanel.transform, "Ban 1", new Vector2(0.56f, 0.22f), new Vector2(0.92f, 0.30f), SellSelectedItem);
-            CreateActionButton(centerPanel.transform, "Sua Ghe", new Vector2(0.08f, 0.10f), new Vector2(0.44f, 0.18f), RepairBoat);
-            CreateActionButton(centerPanel.transform, "Hoi The Luc", new Vector2(0.56f, 0.10f), new Vector2(0.92f, 0.18f), RestoreStamina);
+            CreateActionButton(tradePanel.transform, "Mat Hang Truoc", new Vector2(0.08f, 0.34f), new Vector2(0.44f, 0.42f), SelectPreviousItem);
+            CreateActionButton(tradePanel.transform, "Mat Hang Sau", new Vector2(0.56f, 0.34f), new Vector2(0.92f, 0.42f), SelectNextItem);
+            CreateActionButton(tradePanel.transform, "Mua 1", new Vector2(0.08f, 0.22f), new Vector2(0.44f, 0.30f), BuySelectedItem);
+            CreateActionButton(tradePanel.transform, "Ban 1", new Vector2(0.56f, 0.22f), new Vector2(0.92f, 0.30f), SellSelectedItem);
+            CreateActionButton(tradePanel.transform, "Sua Ghe", new Vector2(0.08f, 0.10f), new Vector2(0.44f, 0.18f), RepairBoat);
+            CreateActionButton(tradePanel.transform, "Hoi The Luc", new Vector2(0.56f, 0.10f), new Vector2(0.92f, 0.18f), RestoreStamina);
 
-            GameObject rightPanel = CreatePanel("NewsPanel", canvasObject.transform, new Color(0.14f, 0.10f, 0.06f, 0.88f));
-            Stretch(rightPanel.GetComponent<RectTransform>(), new Vector2(0.72f, 0.08f), new Vector2(0.98f, 0.44f));
-            CreateText("NewsTitle", rightPanel.transform, 24, TextAnchor.MiddleCenter).text = "TIN DON THI TRUONG";
-            Stretch(rightPanel.transform.Find("NewsTitle").GetComponent<RectTransform>(), new Vector2(0.06f, 0.86f), new Vector2(0.94f, 0.96f));
+            newsPanel = CreatePanel("NewsPanel", canvasObject.transform, new Color(0.14f, 0.10f, 0.06f, 0.88f));
+            Stretch(newsPanel.GetComponent<RectTransform>(), new Vector2(0.72f, 0.08f), new Vector2(0.98f, 0.44f));
+            CreateText("NewsTitle", newsPanel.transform, 24, TextAnchor.MiddleCenter).text = "TIN DON THI TRUONG";
+            Stretch(newsPanel.transform.Find("NewsTitle").GetComponent<RectTransform>(), new Vector2(0.06f, 0.86f), new Vector2(0.94f, 0.96f));
 
-            newsAvatarImage = CreateImage("NpcAvatar", rightPanel.transform);
+            newsAvatarImage = CreateImage("NpcAvatar", newsPanel.transform);
             Stretch(newsAvatarImage.rectTransform, new Vector2(0.06f, 0.46f), new Vector2(0.34f, 0.82f));
 
-            newsNpcNameText = CreateText("NpcName", rightPanel.transform, 20, TextAnchor.MiddleCenter);
+            newsNpcNameText = CreateText("NpcName", newsPanel.transform, 20, TextAnchor.MiddleCenter);
             Stretch(newsNpcNameText.rectTransform, new Vector2(0.04f, 0.38f), new Vector2(0.36f, 0.46f));
 
-            newsText = CreateText("NewsText", rightPanel.transform, 20, TextAnchor.UpperLeft);
+            newsText = CreateText("NewsText", newsPanel.transform, 20, TextAnchor.UpperLeft);
             Stretch(newsText.rectTransform, new Vector2(0.40f, 0.10f), new Vector2(0.94f, 0.82f));
 
-            CreateActionButton(rightPanel.transform, "Ngu Den Sang", new Vector2(0.06f, 0.08f), new Vector2(0.34f, 0.18f), () =>
+            CreateActionButton(newsPanel.transform, "Ngu Den Sang", new Vector2(0.06f, 0.08f), new Vector2(0.34f, 0.18f), () =>
             {
                 if (timeManager != null)
                 {
@@ -193,6 +206,10 @@ namespace ChoNoiMienTay.UI
                     RefreshAll();
                 }
             });
+
+            SetPanelVisible(upgradePanel, false);
+            SetPanelVisible(tradePanel, false);
+            SetPanelVisible(newsPanel, false);
         }
 
         private void HandleTimeChanged(int _, int __) => RefreshStatus();
@@ -451,6 +468,42 @@ namespace ChoNoiMienTay.UI
             rectTransform.offsetMin = Vector2.zero;
             rectTransform.offsetMax = Vector2.zero;
             rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        }
+
+        private void ToggleUpgradePanel() => TogglePanel(upgradePanel);
+        private void ToggleTradePanel() => TogglePanel(tradePanel);
+        private void ToggleNewsPanel() => TogglePanel(newsPanel);
+
+        private void TogglePanel(GameObject panel)
+        {
+            if (panel == null)
+                return;
+
+            SetPanelVisible(panel, !panel.activeSelf);
+        }
+
+        public void OpenNpcTrade(string npcName)
+        {
+            currentTradeNpcName = string.IsNullOrWhiteSpace(npcName) ? "Thuong Lai" : npcName;
+            isNpcTradeOpen = true;
+            if (tradeTitleText != null)
+                tradeTitleText.text = $"GIAO DICH - {currentTradeNpcName.ToUpperInvariant()}";
+            SetPanelVisible(tradePanel, true);
+            RefreshTrade();
+        }
+
+        public void CloseNpcTrade()
+        {
+            isNpcTradeOpen = false;
+            if (tradeTitleText != null)
+                tradeTitleText.text = "CHO NOI TRUNG TAM";
+            SetPanelVisible(tradePanel, false);
+        }
+
+        private void SetPanelVisible(GameObject panel, bool isVisible)
+        {
+            if (panel != null)
+                panel.SetActive(isVisible);
         }
     }
 }
