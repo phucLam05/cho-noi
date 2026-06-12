@@ -56,13 +56,19 @@ namespace ChoNoi.Presentation.Player
             if (Keyboard.current?.eKey.wasPressedThisFrame != true)
                 return;
 
-            if (!isBoarded && npcTradeInteractor != null && npcTradeInteractor.TryHandleInteract())
+            // Ưu tiên tương tác NPC trước (dù đang ở trên ghe hay trên bờ)
+            if (npcTradeInteractor != null && npcTradeInteractor.TryHandleInteract())
                 return;
 
             if (isBoarded)
-                DismountBoat();
+            {
+                if (CanDismount())
+                    DismountBoat();
+            }
             else if (CanBoard())
+            {
                 BoardBoat();
+            }
         }
 
         private bool CanBoard()
@@ -71,6 +77,15 @@ namespace ChoNoi.Presentation.Player
                 return false;
 
             return Vector3.Distance(transform.position, boat.position) <= interactDistance;
+        }
+
+        private bool CanDismount()
+        {
+            if (dismountPoint == null || boat == null)
+                return false;
+
+            // Có thể tăng nhẹ khoảng cách cho phép xuống ghe để dễ thao tác hơn
+            return Vector3.Distance(boat.position, dismountPoint.position) <= interactDistance * 1.5f;
         }
 
         private void BoardBoat()
@@ -126,13 +141,14 @@ namespace ChoNoi.Presentation.Player
 
         private void OnGUI()
         {
-            const int width = 420;
+            const int width = 450;
             const int height = 46;
             Rect rect = new Rect((Screen.width - width) * 0.5f, Screen.height - 92f, width, height);
 
             if (isBoarded)
             {
-                GUI.Box(rect, "E: Roi ghe | WASD: Lai ghe | Alt + Mouse: Xoay camera");
+                string msg = CanDismount() ? "E: Roi ghe / Giao tiep" : "E: Giao tiep NPC";
+                GUI.Box(rect, $"{msg} | WASD: Lai ghe | Alt + Mouse: Xoay camera");
             }
             else if (CanBoard())
             {
