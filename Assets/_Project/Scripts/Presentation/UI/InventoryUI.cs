@@ -30,10 +30,10 @@ namespace ChoNoiMienTay.Presentation
             InitializeTestData();
 
             // Tìm references nếu chưa có
-            if (inventoryManager == null) inventoryManager = FindObjectOfType<InventoryManager>();
-            if (economyManager == null) economyManager = FindObjectOfType<EconomyManager>();
-            if (playerStats == null) playerStats = FindObjectOfType<PlayerStats>();
-            if (hagglingSystem == null) hagglingSystem = FindObjectOfType<HagglingSystem>();
+            if (inventoryManager == null) inventoryManager = FindFirstObjectByType<InventoryManager>();
+            if (economyManager == null) economyManager = FindFirstObjectByType<EconomyManager>();
+            if (playerStats == null) playerStats = FindFirstObjectByType<PlayerStats>();
+            if (hagglingSystem == null) hagglingSystem = FindFirstObjectByType<HagglingSystem>();
 
             BindButtons();
 

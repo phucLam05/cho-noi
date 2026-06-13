@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace ChoNoiMienTay.Infrastructure
 {
-    [CreateAssetMenu(fileName = "NewServiceData", menuName = "Cho Noi/Service Data", order = 2)]
+    [CreateAssetMenu(fileName = "NewServiceData", menuName = "ChoNoi/Data/Service Data", order = 2)]
     public class ServiceData : ScriptableObject
     {
         [Header("Service Info")]

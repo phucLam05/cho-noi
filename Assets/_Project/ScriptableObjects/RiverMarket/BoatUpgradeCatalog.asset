@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 195b69cc86dd4790280a95a4d1442d0d, type: 3}
+  m_Name: BoatUpgradeCatalog
+  m_EditorClassIdentifier: Assembly-CSharp::ChoNoiMienTay.Infrastructure.BoatUpgradeCatalogSO
+  storageTiers:
+  - displayName: Mo rong khoang nho
+    costMoney: 18000
+    capacityBonus: 25
+  - displayName: Mo rong khoang lon
+    costMoney: 28000
+    capacityBonus: 35
+  engineTiers:
+  - displayName: May duoi tom cap 1
+    costMoney: 22000
+    thrustMultiplier: 1.18
+  - displayName: May duoi tom cap 2
+    costMoney: 34000
+    thrustMultiplier: 1.35
+  roofTiers:
+  - displayName: Lop mai
+    costMoney: 15000
+  bambooPoleTiers:
+  - displayName: Cay Beo rong 1
+    costMoney: 12000
+    hagglingBonusRatio: 0.08
+  - displayName: Cay Beo rong 2
+    costMoney: 16000
+    hagglingBonusRatio: 0.1

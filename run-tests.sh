@@ -2,7 +2,7 @@
 # Chạy toàn bộ Boat Physics Tests trong terminal.
 # Dùng: ./run-tests.sh
 
-UNITY="/Applications/Unity/Hub/Editor/6000.4.7f1/Unity.app/Contents/MacOS/Unity"
+UNITY="/home/danielaston/Unity/Hub/Editor/6000.4.7f1/Editor/Unity"
 PROJECT="$(cd "$(dirname "$0")" && pwd)"
 LOG="/tmp/cho-noi-test-$(date +%s).log"
 

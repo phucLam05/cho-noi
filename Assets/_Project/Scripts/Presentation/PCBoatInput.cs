@@ -18,14 +18,28 @@ namespace ChoNoi.Presentation
         // Kéo thả file InputSystem_Actions.inputactions vào đây trong Inspector
         [SerializeField] private InputActionAsset inputActions;
 
-        private InputAction moveAction;
-        private Vector2 moveInput;
+        public InputActionAsset InputActions
+        {
+            get => inputActions;
+            set => inputActions = value;
+        }
 
-        public float Throttle => moveInput.y;
-        public float Steering => moveInput.x;
+        private InputAction moveAction;
+        private Vector2 actionMoveInput;
+        private Vector2 smoothedMoveInput;
+        [SerializeField] private float inputResponsiveness = 8f;
+
+        public float Throttle => smoothedMoveInput.y;
+        public float Steering => smoothedMoveInput.x;
 
         private void Awake()
         {
+            if (inputActions == null)
+            {
+                Debug.LogWarning("[PCBoatInput] InputActionAsset is missing. Keyboard polling fallback will still work.");
+                return;
+            }
+
             // Bước 1: Tìm ActionMap "Player" từ asset, ném lỗi rõ ràng nếu tên sai
             var playerMap = inputActions.FindActionMap("Player", throwIfNotFound: true);
 
@@ -35,16 +49,41 @@ namespace ChoNoi.Presentation
 
         private void OnEnable()
         {
-            moveAction.Enable();
-            moveAction.performed += OnMove;
-            moveAction.canceled  += OnMove;
+            if (inputActions != null)
+            {
+                inputActions.Enable();
+            }
+            if (moveAction != null)
+            {
+                moveAction.Enable();
+                moveAction.performed += OnMove;
+                moveAction.canceled += OnMove;
+            }
         }
 
         private void OnDisable()
         {
-            moveAction.performed -= OnMove;
-            moveAction.canceled  -= OnMove;
-            moveAction.Disable();
+            if (moveAction != null)
+            {
+                moveAction.performed -= OnMove;
+                moveAction.canceled -= OnMove;
+                moveAction.Disable();
+            }
+            if (inputActions != null)
+            {
+                inputActions.Disable();
+            }
+        }
+
+        private void Update()
+        {
+            Vector2 keyboardInput = ReadKeyboardMove();
+            Vector2 targetInput = keyboardInput.sqrMagnitude > 0.001f ? keyboardInput : actionMoveInput;
+
+            smoothedMoveInput = Vector2.Lerp(
+                smoothedMoveInput,
+                Vector2.ClampMagnitude(targetInput, 1f),
+                1f - Mathf.Exp(-inputResponsiveness * Time.deltaTime));
         }
 
         /// <summary>
@@ -52,7 +91,24 @@ namespace ChoNoi.Presentation
         /// </summary>
         private void OnMove(InputAction.CallbackContext context)
         {
-            moveInput = context.ReadValue<Vector2>();
+            actionMoveInput = context.ReadValue<Vector2>();
+        }
+
+        private Vector2 ReadKeyboardMove()
+        {
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard == null)
+                return Vector2.zero;
+
+            float x = 0f;
+            float y = 0f;
+
+            if (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed) x -= 1f;
+            if (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed) x += 1f;
+            if (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed) y -= 1f;
+            if (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed) y += 1f;
+
+            return new Vector2(x, y);
         }
     }
 }

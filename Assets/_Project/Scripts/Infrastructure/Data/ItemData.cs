@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace ChoNoiMienTay.Infrastructure
 {
-    [CreateAssetMenu(fileName = "NewItemData", menuName = "Cho Noi/Item Data", order = 1)]
+    [CreateAssetMenu(fileName = "NewItemData", menuName = "ChoNoi/Data/Item Data", order = 1)]
     public class ItemData : ScriptableObject
     {
         [Header("Basic Info")]

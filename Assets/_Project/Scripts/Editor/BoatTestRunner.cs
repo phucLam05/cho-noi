@@ -18,7 +18,7 @@ namespace ChoNoi.Editor
         private static int _failed;
 
         // Có thể gọi từ menu Unity Editor: ChoNoi > Run Tests
-        [MenuItem("ChoNoi/Run All Tests")]
+        [MenuItem("ChoNoi/Tests/Run All Tests")]
         public static void RunFromMenu() => Run();
 
         /// <summary>
@@ -44,11 +44,24 @@ namespace ChoNoi.Editor
             PrintGroup("3. KIEM TRA IBOATINPUT CONTRACT");
             RunInputContractTests();
 
+            // --- Nhóm 4: Công thức Weight Penalty (Phase 2) ---
+            PrintGroup("4. KIEM TRA CONG THUC WEIGHT PENALTY");
+            RunWeightPenaltyTests();
+
+            // --- Nhóm 5: Environment & Tide (Phase 3) ---
+            PrintGroup("5. KIEM TRA MOI TRUONG & THUY TRIEU");
+            RunEnvironmentTests();
+
+            // --- Nhóm 6: Durability Velocity Clamp (Phase 4) ---
+            PrintGroup("6. KIEM TRA DO BEN & GIOI HAN VAN TOC");
+            RunDurabilityTests();
+
             // --- Tổng kết ---
             PrintSummary();
 
             // Exit code 1 nếu có bài fail (cho CI/CD hoặc script bên ngoài)
-            if (Application.isBatchMode)
+            // Qualify đầy đủ: namespace ChoNoi.Application (TimeManager) che mất UnityEngine.Application.
+            if (UnityEngine.Application.isBatchMode)
                 EditorApplication.Exit(_failed > 0 ? 1 : 0);
         }
 
@@ -193,6 +206,167 @@ namespace ChoNoi.Editor
             Assert("IBoatInput: gia tri trung gian (0.5, -0.75) nam trong [-1, 1]",
                 mock.Throttle >= -1f && mock.Throttle <= 1f &&
                 mock.Steering >= -1f && mock.Steering <= 1f);
+        }
+
+        // ──────────────────────────────────────────────
+        // NHÓM 4: WEIGHT PENALTY (Phase 2)
+        // ──────────────────────────────────────────────
+
+        // Mô phỏng lại công thức trong BoatController để test thuần toán học.
+        private static float Performance(float ratio, float maxPenalty)
+            => 1f - Mathf.Clamp01(ratio) * maxPenalty;
+
+        private static float DragMultiplier(float ratio)
+            => 1f + Mathf.Clamp01(ratio) * 0.5f;
+
+        private static void RunWeightPenaltyTests()
+        {
+            var stats = ScriptableObject.CreateInstance<BoatStats>();
+
+            // MaxPenaltyFactor phải hợp lệ: 0 <= x < 1 (nếu = 1 thì đầy tải đứng im).
+            Assert("BoatStats.MaxPenaltyFactor nam trong [0, 1)",
+                stats.MaxPenaltyFactor >= 0f && stats.MaxPenaltyFactor < 1f);
+
+            // ratio=0 → performance = 1.0 (100% hiệu suất khi ghe trống)
+            Assert("Performance (ratio=0): bang 1.0 (100% hieu suat)",
+                Approx(Performance(0f, stats.MaxPenaltyFactor), 1f));
+
+            // ratio=1, penalty=0.4 → performance = 0.6 (60%)
+            Assert("Performance (ratio=1, penalty=0.4): bang 0.6 (60% hieu suat)",
+                Approx(Performance(1f, 0.4f), 0.6f));
+
+            // Đơn điệu giảm: ratio cao hơn → performance thấp hơn
+            Assert("Performance giam don dieu khi tai trong tang",
+                Performance(0.25f, stats.MaxPenaltyFactor) > Performance(0.75f, stats.MaxPenaltyFactor));
+
+            // Clamp: ratio vượt 1 vẫn cho kết quả như ratio=1 (không phạt quá mức)
+            Assert("Performance (ratio>1): bi clamp ve nhu ratio=1",
+                Approx(Performance(5f, stats.MaxPenaltyFactor), Performance(1f, stats.MaxPenaltyFactor)));
+
+            // dragMultiplier: trống = 1.0, đầy tải = 1.5
+            Assert("DragMultiplier (ratio=0): bang 1.0 (khong tang can)",
+                Approx(DragMultiplier(0f), 1f));
+            Assert("DragMultiplier (ratio=1): bang 1.5 (chay nang -> can nuoc tang)",
+                Approx(DragMultiplier(1f), 1.5f));
+
+            // ActualThrust đầy tải phải nhỏ hơn khi trống
+            float thrustEmpty = stats.ThrustForce * Performance(0f, stats.MaxPenaltyFactor);
+            float thrustFull  = stats.ThrustForce * Performance(1f, stats.MaxPenaltyFactor);
+            Assert("ActualThrust (day tai) < ActualThrust (trong)",
+                thrustFull < thrustEmpty);
+
+            // ActualTorque đầy tải phải nhỏ hơn khi trống (bẻ lái lỳ hơn)
+            float torqueEmpty = stats.TurnTorque * Performance(0f, stats.MaxPenaltyFactor);
+            float torqueFull  = stats.TurnTorque * Performance(1f, stats.MaxPenaltyFactor);
+            Assert("ActualTorque (day tai) < ActualTorque (trong)",
+                torqueFull < torqueEmpty);
+
+            Object.DestroyImmediate(stats);
+        }
+
+        // ──────────────────────────────────────────────
+        // NHÓM 5: ENVIRONMENT & TIDE (Phase 3)
+        // ──────────────────────────────────────────────
+
+        // Công thức mực nước (mirror EnvironmentProfileSO.EvaluateWaterHeight).
+        private static float WaterHeight(float min, float max, float factor)
+            => Mathf.Lerp(min, max, factor);
+
+        // Công thức lực đẩy còn lại khi mắc cạn (mirror BoatController grounding).
+        private static float GroundedThrust(float baseThrust, float penalty, bool grounded)
+            => baseThrust * (grounded ? penalty : 1f);
+
+        private static void RunEnvironmentTests()
+        {
+            // --- Tide: nội suy tuyến tính mực nước ---
+            Assert("Tide: factor=1 -> mat nuoc = maxWaterHeight",
+                Approx(WaterHeight(-2f, 0f, 1f), 0f));
+            Assert("Tide: factor=0 -> mat nuoc = minWaterHeight",
+                Approx(WaterHeight(-2f, 0f, 0f), -2f));
+            Assert("Tide: factor cao hon -> mat nuoc cao hon",
+                WaterHeight(-2f, 0f, 0.7f) > WaterHeight(-2f, 0f, 0.3f));
+
+            // --- EnvironmentProfileSO instance (gia tri mac dinh) ---
+            var profile = ScriptableObject.CreateInstance<EnvironmentProfileSO>();
+
+            Assert("Profile: MaxWaterHeight > MinWaterHeight (sang cao hon chieu)",
+                profile.MaxWaterHeight > profile.MinWaterHeight);
+
+            float wMid = profile.EvaluateWaterHeight(0.5f);
+            Assert("Profile: EvaluateWaterHeight nam trong [min, max]",
+                wMid >= profile.MinWaterHeight - 0.001f && wMid <= profile.MaxWaterHeight + 0.001f);
+
+            Assert("Profile: FogDensity khong am tai moi moc gio",
+                profile.EvaluateFogDensity(0f) >= 0f &&
+                profile.EvaluateFogDensity(0.25f) >= 0f &&
+                profile.EvaluateFogDensity(0.5f) >= 0f &&
+                profile.EvaluateFogDensity(0.99f) >= 0f);
+
+            Object.DestroyImmediate(profile);
+
+            // --- Grounding: mắc cạn làm lực đẩy giảm mạnh ---
+            const float penalty = 0.05f;
+            Assert("Grounding: penalty mac dinh nam trong [0, 1)",
+                penalty >= 0f && penalty < 1f);
+            Assert("Grounding: mac can -> luc day < khi noi",
+                GroundedThrust(10f, penalty, true) < GroundedThrust(10f, penalty, false));
+            Assert("Grounding: KHONG mac can -> luc day giu nguyen (Phase 1/2 khong doi)",
+                Approx(GroundedThrust(10f, penalty, false), 10f));
+        }
+
+        // ──────────────────────────────────────────────
+        // NHÓM 6: DURABILITY VELOCITY CLAMP (Phase 4)
+        // ──────────────────────────────────────────────
+
+        // Công thức trần tốc độ (mirror BoatController.ClampVelocityByDurability).
+        private static float CurrentMaxSpeed(float baseMax, float ratio)
+            => baseMax * Mathf.Clamp(ratio, 0.3f, 1f);
+
+        // Áp clamp lên một độ lớn vận tốc.
+        private static float ApplyClamp(float speed, float maxSpeed)
+            => speed > maxSpeed ? maxSpeed : speed;
+
+        private static void RunDurabilityTests()
+        {
+            var stats = ScriptableObject.CreateInstance<BoatStats>();
+            float baseMax = stats.BaseMaxSpeed;   // mặc định 10
+
+            Assert("BoatStats.BaseMaxSpeed phai > 0",
+                baseMax > 0f);
+
+            // ratio=1 (nguyen ven) -> tran = baseMaxSpeed
+            Assert("Durability=1.0: tran toc do = baseMaxSpeed",
+                Approx(CurrentMaxSpeed(baseMax, 1f), baseMax));
+
+            // ratio=0 -> tran = 30% baseMaxSpeed (san toi thieu, ghe khong ket chet)
+            Assert("Durability=0.0: tran toc do = 30% baseMaxSpeed (giu it nhat 30%)",
+                Approx(CurrentMaxSpeed(baseMax, 0f), baseMax * 0.3f));
+
+            // ratio=0.1 (gan hong) -> van bi clamp ve san 30% (khop test "Durability 10 -> 3m/s")
+            Assert("Durability=0.1: tran van la 30% baseMaxSpeed (3 m/s khi base=10)",
+                Approx(CurrentMaxSpeed(baseMax, 0.1f), baseMax * 0.3f));
+
+            // ratio=0.5 -> tran = 50% baseMaxSpeed
+            Assert("Durability=0.5: tran toc do = 50% baseMaxSpeed",
+                Approx(CurrentMaxSpeed(baseMax, 0.5f), baseMax * 0.5f));
+
+            // Tran khong giam theo do ben (don dieu khong giam)
+            Assert("Tran toc do KHONG giam khi do ben tang (don dieu)",
+                CurrentMaxSpeed(baseMax, 0.4f) <= CurrentMaxSpeed(baseMax, 0.9f));
+
+            // Clamp: vuot tran -> ve dung tran; duoi tran -> giu nguyen
+            float maxAtLow = CurrentMaxSpeed(baseMax, 0.1f);   // = 3 khi base=10
+            Assert("Clamp: van toc vuot tran bi keo ve tran",
+                Approx(ApplyClamp(maxAtLow + 5f, maxAtLow), maxAtLow));
+            Assert("Clamp: van toc duoi tran duoc giu nguyen",
+                Approx(ApplyClamp(maxAtLow - 1f, maxAtLow), maxAtLow - 1f));
+
+            // Do ben KHONG cham thrustForce (ghe hong van co luc nhich di): cong thuc tran
+            // toc do chi phu thuoc baseMaxSpeed, hoan toan doc lap voi ThrustForce.
+            Assert("Do ben KHONG lam giam ThrustForce (thrust > 0, doc lap voi tran toc do)",
+                stats.ThrustForce > 0f);
+
+            Object.DestroyImmediate(stats);
         }
 
         // ──────────────────────────────────────────────

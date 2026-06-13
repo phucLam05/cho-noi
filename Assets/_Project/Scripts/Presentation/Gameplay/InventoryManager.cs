@@ -1,10 +1,11 @@
 using System.Collections.Generic;
 using UnityEngine;
+using ChoNoi.Domain;
 using ChoNoiMienTay.Infrastructure;
 
 namespace ChoNoiMienTay.Presentation
 {
-    public class InventoryManager : MonoBehaviour
+    public class InventoryManager : MonoBehaviour, IWeightProvider
     {
         [Header("Inventory Status")]
         [SerializeField] private float maxWeightCapacity = 100f; // Sức chứa mặc định ban đầu
@@ -16,6 +17,16 @@ namespace ChoNoiMienTay.Presentation
         public float MaxWeightCapacity => maxWeightCapacity;
         public float CurrentTotalWeight => currentTotalWeight;
         public Dictionary<ItemData, int> Inventory => inventory;
+
+        public float GetCurrentWeightRatio()
+        {
+            if (maxWeightCapacity <= 0f)
+            {
+                return 0f;
+            }
+
+            return Mathf.Clamp01(currentTotalWeight / maxWeightCapacity);
+        }
 
         /// <summary>
         /// Hàm này sẽ được gọi bởi Hệ thống Nâng cấp ghe sau này.
@@ -78,6 +89,23 @@ namespace ChoNoiMienTay.Presentation
                 Debug.LogWarning($"[InventoryManager] LỖI BÁN HÀNG: Không đủ {item.itemName} trong kho để bán!");
                 return false;
             }
+        }
+        public void ClearInventory()
+        {
+            inventory.Clear();
+            currentTotalWeight = 0f;
+        }
+
+        public void SetItemAmount(ItemData item, int amount)
+        {
+            if (item == null || amount <= 0) return;
+            inventory[item] = amount;
+            currentTotalWeight += item.weight * amount;
+        }
+
+        public void LoadCapacity(float capacity)
+        {
+            maxWeightCapacity = capacity;
         }
     }
 }

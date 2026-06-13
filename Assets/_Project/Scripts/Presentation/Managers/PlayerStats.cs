@@ -73,5 +73,12 @@ namespace ChoNoiMienTay.Presentation
             Debug.LogWarning($"[PlayerStats] KHÔNG ĐỦ TIỀN! Cần {amount:N0} VNĐ, số dư chỉ còn {currentMoney:N0} VNĐ");
             return false;
         }
+        public void LoadStats(int money, float stamina, float maxStam, float bonusRatio)
+        {
+            currentMoney = money;
+            currentStamina = stamina;
+            maxStamina = maxStam;
+            maxBonusPriceRatio = bonusRatio;
+        }
     }
 }

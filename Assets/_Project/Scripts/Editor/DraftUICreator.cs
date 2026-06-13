@@ -10,7 +10,7 @@ namespace ChoNoiMienTay.Editor
 {
     public class DraftUICreator
     {
-        [MenuItem("Cho Noi/Tạo UI Nháp Kho Hàng")]
+        [MenuItem("ChoNoi/UI/Create Draft Inventory UI")]
         public static void CreateDraftUI()
         {
             // 1. Tạo Canvas
