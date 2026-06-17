@@ -9,6 +9,7 @@ namespace ChoNoi.Presentation.Player
     {
         [SerializeField] private RiverMarketHUD hud;
         [SerializeField] private ShorePlayerController playerController;
+        [SerializeField] private BargainingPrototypeUI bargainingUI;
 
         private NpcTradeTarget currentTarget;
         private NpcTradeTarget activeTradeTarget;
@@ -22,6 +23,9 @@ namespace ChoNoi.Presentation.Player
 
             if (playerController == null)
                 playerController = GetComponent<ShorePlayerController>();
+
+            if (bargainingUI == null)
+                bargainingUI = FindAnyObjectByType<BargainingPrototypeUI>();
         }
 
         private void Update()
@@ -31,16 +35,20 @@ namespace ChoNoi.Presentation.Player
 
             currentTarget = FindClosestTarget();
 
-            if (hud != null && hud.IsNpcTradeOpen && (currentTarget == null || Keyboard.current?.escapeKey.wasPressedThisFrame == true))
+            bool isAnyUIOpen = (hud != null && hud.IsNpcTradeOpen) || (bargainingUI != null && !bargainingUI.IsHidden);
+
+            if (isAnyUIOpen && (currentTarget == null || Keyboard.current?.escapeKey.wasPressedThisFrame == true))
                 CloseTrade();
         }
 
         public bool TryHandleInteract()
         {
-            if (currentTarget == null || hud == null)
+            if (currentTarget == null)
                 return false;
 
-            if (hud.IsNpcTradeOpen)
+            bool isAnyUIOpen = (hud != null && hud.IsNpcTradeOpen) || (bargainingUI != null && !bargainingUI.IsHidden);
+
+            if (isAnyUIOpen)
                 CloseTrade();
             else
                 OpenTrade(currentTarget);
@@ -50,12 +58,27 @@ namespace ChoNoi.Presentation.Player
 
         private void OpenTrade(NpcTradeTarget target)
         {
-            if (target == null || hud == null)
+            if (target == null)
                 return;
 
             activeTradeTarget = target;
             SetNpcPaused(activeTradeTarget, true);
-            hud.OpenNpcTrade(activeTradeTarget.NpcDisplayName);
+
+            switch (target.TargetType)
+            {
+                case InteractionTargetType.Bargain:
+                    if (bargainingUI != null) bargainingUI.ToggleVisibility(true);
+                    break;
+                case InteractionTargetType.Upgrade:
+                    if (hud != null) hud.OpenUpgradePanel();
+                    break;
+                case InteractionTargetType.News:
+                    if (hud != null) hud.OpenNewsPanel();
+                    break;
+                case InteractionTargetType.Trade:
+                    if (hud != null) hud.OpenNpcTrade(activeTradeTarget.NpcDisplayName);
+                    break;
+            }
         }
 
         private void CloseTrade()
@@ -65,6 +88,9 @@ namespace ChoNoi.Presentation.Player
 
             if (hud != null)
                 hud.CloseNpcTrade();
+                
+            if (bargainingUI != null)
+                bargainingUI.ToggleVisibility(false);
         }
 
         private NpcTradeTarget FindClosestTarget()

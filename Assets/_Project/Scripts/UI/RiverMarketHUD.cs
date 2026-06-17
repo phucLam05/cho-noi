@@ -22,7 +22,8 @@ namespace ChoNoiMienTay.UI
         [SerializeField] private List<ItemData> marketItems = new List<ItemData>();
 
         private Canvas canvas;
-        private Text statusText;
+        private Text statsText;
+        private Text timeText;
         private Text upgradeText;
         private Text newsText;
         private Text newsNpcNameText;
@@ -136,12 +137,12 @@ namespace ChoNoiMienTay.UI
 
             GameObject topBar = CreatePanel("TopBar", canvasObject.transform, new Color(0f, 0f, 0f, 0.65f));
             Stretch(topBar.GetComponent<RectTransform>(), new Vector2(0.02f, 0.90f), new Vector2(0.98f, 0.98f));
-            statusText = CreateText("StatusText", topBar.transform, 24, TextAnchor.MiddleLeft);
-            Stretch(statusText.rectTransform, new Vector2(0.02f, 0.15f), new Vector2(0.72f, 0.85f));
+            
+            statsText = CreateText("StatsText", topBar.transform, 24, TextAnchor.MiddleLeft);
+            Stretch(statsText.rectTransform, new Vector2(0.02f, 0.15f), new Vector2(0.60f, 0.85f));
 
-            CreateActionButton(topBar.transform, "Trai Ghe", new Vector2(0.74f, 0.18f), new Vector2(0.81f, 0.82f), ToggleUpgradePanel);
-            CreateActionButton(topBar.transform, "Cho", new Vector2(0.825f, 0.18f), new Vector2(0.885f, 0.82f), ToggleTradePanel);
-            CreateActionButton(topBar.transform, "Tin Don", new Vector2(0.90f, 0.18f), new Vector2(0.98f, 0.82f), ToggleNewsPanel);
+            timeText = CreateText("TimeText", topBar.transform, 24, TextAnchor.MiddleRight);
+            Stretch(timeText.rectTransform, new Vector2(0.70f, 0.15f), new Vector2(0.98f, 0.85f));
 
             upgradePanel = CreatePanel("UpgradePanel", canvasObject.transform, new Color(0.08f, 0.16f, 0.18f, 0.86f));
             Stretch(upgradePanel.GetComponent<RectTransform>(), new Vector2(0.02f, 0.08f), new Vector2(0.26f, 0.86f));
@@ -227,13 +228,24 @@ namespace ChoNoiMienTay.UI
 
         private void RefreshStatus()
         {
-            if (statusText == null || timeManager == null || playerStats == null || inventoryManager == null) return;
+            UpdateTopBarText();
+        }
 
-            statusText.text =
-                $"Ngay {timeManager.CurrentDay}  |  {timeManager.CurrentPhase}  |  " +
-                $"Tien: {playerStats.CurrentMoney:N0}  |  The luc: {playerStats.CurrentStamina:0}/{playerStats.MaxStamina:0}  |  " +
-                $"Tai trong: {inventoryManager.CurrentTotalWeight:0}/{inventoryManager.MaxWeightCapacity:0} kg  |  " +
-                $"Do ben: {(durabilityManager != null ? durabilityManager.CurrentDurability.ToString("0") : "--")}";
+        private void UpdateTopBarText()
+        {
+            if (statsText == null || timeText == null) return;
+
+            string money = playerStats != null ? playerStats.CurrentMoney.ToString("N0") : "0";
+            string stamina = playerStats != null ? $"{playerStats.CurrentStamina:0}/{playerStats.MaxStamina:0}" : "0/0";
+            string durability = durabilityManager != null ? $"{durabilityManager.CurrentDurability:0}/{durabilityManager.MaxDurability:0}" : "0/0";
+            
+            float weight = inventoryManager != null ? inventoryManager.CurrentTotalWeight : 0f;
+            float maxWeight = inventoryManager != null ? inventoryManager.MaxWeightCapacity : 100f;
+
+            string dayPhase = timeManager != null ? $"Ngay {timeManager.CurrentDay} | {timeManager.CurrentPhase}" : "Ngay 1 | Dawn";
+
+            statsText.text = $"Tien: {money} | The luc: {stamina} | Tai trong: {weight:0}/{maxWeight:0} kg | Do ben: {durability}";
+            timeText.text = $"{dayPhase}";
         }
 
         private void RefreshUpgrades()
@@ -470,16 +482,45 @@ namespace ChoNoiMienTay.UI
             rectTransform.pivot = new Vector2(0.5f, 0.5f);
         }
 
-        private void ToggleUpgradePanel() => TogglePanel(upgradePanel);
-        private void ToggleTradePanel() => TogglePanel(tradePanel);
-        private void ToggleNewsPanel() => TogglePanel(newsPanel);
-
-        private void TogglePanel(GameObject panel)
+        public void OpenUpgradePanel()
         {
-            if (panel == null)
-                return;
+            CloseAllPanels();
+            SetPanelVisible(upgradePanel, true);
+        }
 
-            SetPanelVisible(panel, !panel.activeSelf);
+        public void OpenNewsPanel()
+        {
+            CloseAllPanels();
+            SetPanelVisible(newsPanel, true);
+        }
+
+        public void CloseAllPanels()
+        {
+            SetPanelVisible(upgradePanel, false);
+            SetPanelVisible(tradePanel, false);
+            SetPanelVisible(newsPanel, false);
+            isNpcTradeOpen = false;
+        }
+
+        private void ToggleUpgradePanel()
+        {
+            bool wasActive = upgradePanel != null && upgradePanel.activeSelf;
+            CloseAllPanels();
+            if (!wasActive) SetPanelVisible(upgradePanel, true);
+        }
+
+        private void ToggleTradePanel()
+        {
+            bool wasActive = tradePanel != null && tradePanel.activeSelf;
+            CloseAllPanels();
+            if (!wasActive) SetPanelVisible(tradePanel, true);
+        }
+
+        private void ToggleNewsPanel()
+        {
+            bool wasActive = newsPanel != null && newsPanel.activeSelf;
+            CloseAllPanels();
+            if (!wasActive) SetPanelVisible(newsPanel, true);
         }
 
         public void OpenNpcTrade(string npcName)
