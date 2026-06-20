@@ -1,5 +1,6 @@
 using ChoNoi.Presentation.NPC;
 using ChoNoiMienTay.UI;
+using ChoNoi.UI;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -15,6 +16,7 @@ namespace ChoNoi.Presentation.Player
         private NpcTradeTarget activeTradeTarget;
 
         public bool HasTradeTargetInRange => currentTarget != null;
+        public NpcTradeTarget CurrentTarget => currentTarget;
 
         private void Start()
         {
@@ -30,14 +32,32 @@ namespace ChoNoi.Presentation.Player
 
         private void Update()
         {
-            if (playerController != null && !playerController.CanMove)
+            var fullUI = FindAnyObjectByType<FullSimulatorUI>();
+            bool isDialogueOpen = fullUI != null && fullUI.IsDialogueOpen;
+            bool isUpgradeOpen = hud != null && hud.IsUpgradeOpen;
+
+            // When dialogue or upgrade UI is active, the player is interacting (inputs frozen elsewhere)
+            bool isAnyUIOpen = isDialogueOpen || isUpgradeOpen || (hud != null && hud.IsNpcTradeOpen) || (bargainingUI != null && !bargainingUI.IsHidden);
+
+            if (playerController != null && !playerController.CanMove && !isAnyUIOpen)
+            {
+                // Safety release if movement was somehow locked but no UI is active
+                playerController.CanMove = true;
+            }
+
+            if (playerController != null && !playerController.CanMove && isAnyUIOpen)
+            {
+                // If UI is open, check if we need to close it due to escape key
+                if (Keyboard.current?.escapeKey.wasPressedThisFrame == true)
+                {
+                    CloseTrade();
+                }
                 return;
+            }
 
             currentTarget = FindClosestTarget();
 
-            bool isAnyUIOpen = (hud != null && hud.IsNpcTradeOpen) || (bargainingUI != null && !bargainingUI.IsHidden);
-
-            if (isAnyUIOpen && (currentTarget == null || Keyboard.current?.escapeKey.wasPressedThisFrame == true))
+            if (isAnyUIOpen && currentTarget == null)
                 CloseTrade();
         }
 
@@ -46,7 +66,10 @@ namespace ChoNoi.Presentation.Player
             if (currentTarget == null)
                 return false;
 
-            bool isAnyUIOpen = (hud != null && hud.IsNpcTradeOpen) || (bargainingUI != null && !bargainingUI.IsHidden);
+            var fullUI = FindAnyObjectByType<FullSimulatorUI>();
+            bool isDialogueOpen = fullUI != null && fullUI.IsDialogueOpen;
+            bool isUpgradeOpen = hud != null && hud.IsUpgradeOpen;
+            bool isAnyUIOpen = isDialogueOpen || isUpgradeOpen || (hud != null && hud.IsNpcTradeOpen) || (bargainingUI != null && !bargainingUI.IsHidden);
 
             if (isAnyUIOpen)
                 CloseTrade();
@@ -64,33 +87,67 @@ namespace ChoNoi.Presentation.Player
             activeTradeTarget = target;
             SetNpcPaused(activeTradeTarget, true);
 
+            // Freeze player controller movement
+            if (playerController != null)
+                playerController.CanMove = false;
+
+            // Freeze boat controls if on boat
+            var boarding = GetComponent<BoatBoardingController>();
+            if (boarding != null && boarding.IsBoarded)
+            {
+                boarding.SetBoatControlActive(false);
+            }
+
+            var fullUI = FindAnyObjectByType<FullSimulatorUI>();
+
             switch (target.TargetType)
             {
                 case InteractionTargetType.Bargain:
-                    if (bargainingUI != null) bargainingUI.ToggleVisibility(true);
+                    if (fullUI != null)
+                        fullUI.OpenBargainDialogue(target);
+                    else if (bargainingUI != null)
+                        bargainingUI.ToggleVisibility(true);
                     break;
                 case InteractionTargetType.Upgrade:
                     if (hud != null) hud.OpenUpgradePanel();
                     break;
                 case InteractionTargetType.News:
-                    if (hud != null) hud.OpenNewsPanel();
-                    break;
                 case InteractionTargetType.Trade:
-                    if (hud != null) hud.OpenNpcTrade(activeTradeTarget.NpcDisplayName);
+                    if (fullUI != null)
+                        fullUI.OpenTradeDialogue(target);
+                    else if (hud != null)
+                        hud.OpenNpcTrade(activeTradeTarget.NpcDisplayName);
                     break;
             }
         }
 
-        private void CloseTrade()
+        public void CloseTrade()
         {
             SetNpcPaused(activeTradeTarget, false);
             activeTradeTarget = null;
 
+            var boarding = GetComponent<BoatBoardingController>();
+            bool onBoat = boarding != null && boarding.IsBoarded;
+
+            // Unfreeze player movement only if NOT on the boat
+            if (playerController != null)
+                playerController.CanMove = !onBoat;
+
+            // Unfreeze boat controls if on the boat
+            if (boarding != null && onBoat)
+            {
+                boarding.SetBoatControlActive(true);
+            }
+
             if (hud != null)
-                hud.CloseNpcTrade();
+                hud.CloseAllPanels();
                 
             if (bargainingUI != null)
                 bargainingUI.ToggleVisibility(false);
+
+            var fullUI = FindAnyObjectByType<FullSimulatorUI>();
+            if (fullUI != null)
+                fullUI.CloseAllDialogueAndPanels();
         }
 
         private NpcTradeTarget FindClosestTarget()
@@ -112,6 +169,8 @@ namespace ChoNoi.Presentation.Player
             return closest;
         }
 
+        // Commented out OnGUI to avoid overlap with Canvas side prompts
+        /*
         private void OnGUI()
         {
             if (currentTarget == null)
@@ -120,6 +179,7 @@ namespace ChoNoi.Presentation.Player
             Rect rect = new Rect((Screen.width - 420f) * 0.5f, Screen.height - 146f, 420f, 42f);
             GUI.Box(rect, $"E: Giao dich voi {currentTarget.NpcDisplayName}");
         }
+        */
 
         private static void SetNpcPaused(NpcTradeTarget target, bool paused)
         {

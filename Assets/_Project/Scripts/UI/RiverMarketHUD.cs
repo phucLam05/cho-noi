@@ -38,6 +38,8 @@ namespace ChoNoiMienTay.UI
         private string currentTradeNpcName = "Thuong Lai";
 
         public bool IsNpcTradeOpen => isNpcTradeOpen;
+        public bool IsUpgradeOpen => upgradePanel != null && upgradePanel.activeSelf;
+        public bool IsNewsOpen => newsPanel != null && newsPanel.activeSelf;
 
         public void Configure(
             TimeManager timeSource,
@@ -150,24 +152,25 @@ namespace ChoNoiMienTay.UI
             Stretch(upgradePanel.transform.Find("UpgradeTitle").GetComponent<RectTransform>(), new Vector2(0.06f, 0.86f), new Vector2(0.94f, 0.96f));
 
             upgradeText = CreateText("UpgradeText", upgradePanel.transform, 22, TextAnchor.UpperLeft);
-            Stretch(upgradeText.rectTransform, new Vector2(0.08f, 0.47f), new Vector2(0.92f, 0.82f));
+            Stretch(upgradeText.rectTransform, new Vector2(0.08f, 0.55f), new Vector2(0.92f, 0.82f));
 
-            CreateActionButton(upgradePanel.transform, "Khoang Chua", new Vector2(0.08f, 0.33f), new Vector2(0.92f, 0.41f), () =>
+            CreateActionButton(upgradePanel.transform, "Khoang Chua", new Vector2(0.08f, 0.45f), new Vector2(0.92f, 0.53f), () =>
             {
                 if (boatCampManager != null && boatCampManager.TryBuyNextStorageUpgrade()) RefreshAll();
             });
-            CreateActionButton(upgradePanel.transform, "Dong Co", new Vector2(0.08f, 0.23f), new Vector2(0.92f, 0.31f), () =>
+            CreateActionButton(upgradePanel.transform, "Dong Co", new Vector2(0.08f, 0.35f), new Vector2(0.92f, 0.43f), () =>
             {
                 if (boatCampManager != null && boatCampManager.TryBuyNextEngineUpgrade()) RefreshAll();
             });
-            CreateActionButton(upgradePanel.transform, "Lop Mai", new Vector2(0.08f, 0.13f), new Vector2(0.92f, 0.21f), () =>
+            CreateActionButton(upgradePanel.transform, "Lop Mai", new Vector2(0.08f, 0.25f), new Vector2(0.92f, 0.33f), () =>
             {
                 if (boatCampManager != null && boatCampManager.TryBuyRoofUpgrade()) RefreshAll();
             });
-            CreateActionButton(upgradePanel.transform, "Cay Beo", new Vector2(0.08f, 0.03f), new Vector2(0.92f, 0.11f), () =>
+            CreateActionButton(upgradePanel.transform, "Cay Beo", new Vector2(0.08f, 0.15f), new Vector2(0.92f, 0.23f), () =>
             {
                 if (boatCampManager != null && boatCampManager.TryBuyNextBambooPoleUpgrade()) RefreshAll();
             });
+            CreateActionButton(upgradePanel.transform, "Dong", new Vector2(0.08f, 0.05f), new Vector2(0.92f, 0.13f), CloseAllPanels);
 
             tradePanel = CreatePanel("TradePanel", canvasObject.transform, new Color(0.12f, 0.12f, 0.08f, 0.88f));
             Stretch(tradePanel.GetComponent<RectTransform>(), new Vector2(0.31f, 0.08f), new Vector2(0.69f, 0.44f));
@@ -419,11 +422,7 @@ namespace ChoNoiMienTay.UI
             if (FindAnyObjectByType<EventSystem>() != null) return;
 
             GameObject eventSystemObject = new GameObject("EventSystem", typeof(EventSystem));
-#if ENABLE_INPUT_SYSTEM
             eventSystemObject.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
-#else
-            eventSystemObject.AddComponent<StandaloneInputModule>();
-#endif
         }
 
         private GameObject CreatePanel(string name, Transform parent, Color color)

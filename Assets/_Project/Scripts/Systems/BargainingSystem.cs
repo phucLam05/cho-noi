@@ -21,6 +21,7 @@ namespace ChoNoiMienTay.Systems
         public int NpcOpeningPrice { get; private set; }
         public int NpcMaxAcceptPrice { get; private set; }
         public int CurrentMarketPrice { get; private set; }
+        public int BargainQuantity { get; private set; } = 1;
         public string CurrentMessage { get; private set; } = "Chọn hàng trên ghe để bắt đầu vào chợ.";
         public bool HasActiveSession => CurrentNpc != null && SelectedItem != null;
         public BargainingEconomyConfig EconomyConfig => economyConfig;
@@ -72,7 +73,7 @@ namespace ChoNoiMienTay.Systems
             NotifyStateChanged();
         }
 
-        public bool StartSession(BargainingNpcProfile npcProfile)
+        public bool StartSession(BargainingNpcProfile npcProfile, int quantity)
         {
             if (economyConfig == null || npcProfile == null || SelectedItem == null)
             {
@@ -89,13 +90,15 @@ namespace ChoNoiMienTay.Systems
                 return false;
             }
 
-            if (GetInventoryCount(SelectedItem) <= 0)
+            int available = GetInventoryCount(SelectedItem);
+            if (available <= 0)
             {
                 CurrentMessage = $"Bạn không còn {SelectedItem.itemName} trong kho.";
                 NotifyStateChanged();
                 return false;
             }
 
+            BargainQuantity = Mathf.Clamp(quantity, 1, available);
             CurrentNpc = npcProfile;
             CurrentMarketPrice = CalculateMarketPrice(entry);
             NpcOpeningPrice = RoundToStep(Mathf.RoundToInt(CurrentMarketPrice * npcProfile.openingPriceMultiplier));
@@ -103,7 +106,7 @@ namespace ChoNoiMienTay.Systems
             CurrentAskPrice = NpcOpeningPrice;
 
             CurrentMessage =
-                $"{npcProfile.displayName} mở giá {NpcOpeningPrice:N0} VNĐ cho 1 {SelectedItem.itemName}. " +
+                $"{npcProfile.displayName} mở giá {NpcOpeningPrice:N0} VNĐ cho mỗi quả {SelectedItem.itemName} (Mặc cả sỉ cho {BargainQuantity} quả). " +
                 "Tăng hoặc giảm giá đề nghị rồi chốt kèo.";
             NotifyStateChanged();
             return true;
@@ -149,7 +152,8 @@ namespace ChoNoiMienTay.Systems
                 return false;
             }
 
-            bool success = economyManager.SellItemWholesale(SelectedItem, 1, inventoryManager, CurrentAskPrice);
+            int totalRevenue = CurrentAskPrice * BargainQuantity;
+            bool success = economyManager.SellItemWholesale(SelectedItem, BargainQuantity, inventoryManager, totalRevenue);
             if (!success)
             {
                 CurrentMessage = "Không thể hoàn tất giao dịch. Kiểm tra lại hàng trong kho.";
@@ -158,7 +162,7 @@ namespace ChoNoiMienTay.Systems
             }
 
             string itemName = SelectedItem.itemName;
-            CurrentMessage = $"Chốt đơn thành công. {CurrentNpc.displayName} mua 1 {itemName} với giá {CurrentAskPrice:N0} VNĐ.";
+            CurrentMessage = $"Chốt đơn thành công. {CurrentNpc.displayName} mua {BargainQuantity} quả {itemName} với giá {CurrentAskPrice:N0} VNĐ/quả (Tổng: {totalRevenue:N0} VNĐ).";
 
             if (GetInventoryCount(SelectedItem) <= 0)
             {
@@ -223,6 +227,7 @@ namespace ChoNoiMienTay.Systems
             NpcMaxAcceptPrice = 0;
             CurrentAskPrice = 0;
             CurrentMarketPrice = 0;
+            BargainQuantity = 1;
 
             if (clearSelectedItem)
             {

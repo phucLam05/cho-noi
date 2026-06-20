@@ -510,7 +510,7 @@ namespace ChoNoiMienTay.UI
             button.gameObject.AddComponent<LayoutElement>().preferredHeight = 56f;
             button.onClick.AddListener(() =>
             {
-                if (bargainingSystem.StartSession(profile))
+                if (bargainingSystem.StartSession(profile, 1))
                 {
                     ShowScreen(PrototypeScreen.Bargain);
                 }

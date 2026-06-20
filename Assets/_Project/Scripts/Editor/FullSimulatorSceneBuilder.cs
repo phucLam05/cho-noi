@@ -68,7 +68,11 @@ namespace ChoNoiMienTay.Editor
 
             // 6. Setup Contextual Interactions
             ConfigureTradeTarget("MerchantLargeBoat", InteractionTargetType.Bargain);
-            ConfigureTradeTarget("VendorBoatModel", InteractionTargetType.News);
+            ConfigureTradeTarget("FoodVendorSmallBoat", InteractionTargetType.Trade);
+            ConfigureTradeTarget("ShoreVillagerNpc", InteractionTargetType.Trade);
+            ConfigureTradeTarget("Villager_A", InteractionTargetType.Trade);
+            ConfigureTradeTarget("Villager_B", InteractionTargetType.Trade);
+            ConfigureTradeTarget("Villager_C", InteractionTargetType.Trade);
             ConfigureTradeTarget("WoodPost", InteractionTargetType.Upgrade);
 
             // Save the scene

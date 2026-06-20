@@ -56,6 +56,7 @@ namespace ChoNoiMienTay.Editor
             Terrain terrain = terrainObj.GetComponent<Terrain>();
             GameObject waterPlane = BuildWater(worldRoot.transform);
             BuildObstacles(worldRoot.transform);
+            BuildPier(worldRoot.transform);
             BuildNpcBoats(worldRoot.transform);
             BuildRiverLife(worldRoot.transform);
             BuildEnvironmentAssets(worldRoot.transform, terrain);
@@ -484,8 +485,33 @@ namespace ChoNoiMienTay.Editor
             obstacles.transform.SetParent(parent);
 
             CreateObstacle(obstacles.transform, "HyacinthPatch", PrimitiveType.Sphere, new Vector3(103f, 3.25f, 122f), new Vector3(3f, 0.35f, 2.5f), new Color(0.20f, 0.55f, 0.25f), true);
-            CreateObstacle(obstacles.transform, "WoodPost", PrimitiveType.Cylinder, new Vector3(139f, 3.4f, 84f), new Vector3(0.4f, 2.4f, 0.4f), new Color(0.36f, 0.23f, 0.13f), false);
+            GameObject woodPost = CreateObstacle(obstacles.transform, "WoodPost", PrimitiveType.Cylinder, new Vector3(135f, 3.4f, 75f), new Vector3(0.8f, 3.5f, 0.8f), new Color(0.36f, 0.23f, 0.13f), false);
+            CreatePrimitiveChild(woodPost.transform, "RedMarker", PrimitiveType.Cylinder, new Vector3(0f, 0.7f, 0f), new Vector3(1.2f, 0.25f, 1.2f), new Color(0.9f, 0.1f, 0.1f));
             CreateObstacle(obstacles.transform, "BrokenBoat", PrimitiveType.Cube, new Vector3(73f, 3.35f, 154f), new Vector3(4f, 0.8f, 1.6f), new Color(0.25f, 0.25f, 0.25f), false);
+        }
+
+        private static void BuildPier(Transform parent)
+        {
+            GameObject pierRoot = new GameObject("WoodenPier");
+            pierRoot.transform.SetParent(parent);
+
+            // Horizontal deck: cube from X = 94 to 114, Y = 4.25f, Z = 30f.
+            // Length in X is 20f. Width in Z is 3f. Thickness in Y is 0.2f.
+            GameObject deck = CreatePrimitiveChild(pierRoot.transform, "Deck", PrimitiveType.Cube, new Vector3(104f, 4.25f, 30f), new Vector3(20f, 0.2f, 3f), new Color(0.45f, 0.33f, 0.22f));
+
+            // Support pillars: vertical cylinders.
+            // Support pillars at X = 99, 104, 109, 113.5 on both Z sides (Z = 28.8 and Z = 31.2).
+            // Pillars height from riverbed (approx Y = 1.0f) to deck Y = 4.25f. Height = 3.5f, Y-pos = 2.5f.
+            float[] pillarXs = { 99f, 104f, 109f, 113.5f };
+            float[] pillarZs = { 28.8f, 31.2f };
+            int i = 0;
+            foreach (float px in pillarXs)
+            {
+                foreach (float pz in pillarZs)
+                {
+                    CreatePrimitiveChild(pierRoot.transform, $"Pillar_{i++}", PrimitiveType.Cylinder, new Vector3(px, 2.5f, pz), new Vector3(0.3f, 3.5f, 0.3f), new Color(0.35f, 0.25f, 0.15f));
+                }
+            }
         }
 
         private static void BuildNpcBoats(Transform parent)
@@ -738,7 +764,12 @@ namespace ChoNoiMienTay.Editor
             AddTradeTarget(shoreVillager, "Dan Lang", 3.2f);
 
             Transform standPoint = CreateMarker(boat.transform, "PlayerStandPoint", new Vector3(0f, 1.35f, -0.4f), Quaternion.identity);
-            Transform dismountPoint = CreateMarker(boat.transform, "DismountPoint", new Vector3(-24f, 0.5f, -6f), Quaternion.Euler(0f, 80f, 0f));
+            
+            GameObject dismountObj = new GameObject("DismountPoint");
+            dismountObj.transform.SetParent(parent, false);
+            dismountObj.transform.position = new Vector3(110f, 5.2f, 30f);
+            dismountObj.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
+            Transform dismountPoint = dismountObj.transform;
 
             BoatBoardingController boarding = player.AddComponent<BoatBoardingController>();
             boarding.Configure(
@@ -763,12 +794,15 @@ namespace ChoNoiMienTay.Editor
             if (boarding == null)
                 return;
 
+            GameObject dismountObj = GameObject.Find("DismountPoint");
+            Transform dismountPoint = dismountObj != null ? dismountObj.transform : null;
+
             boarding.Configure(
                 player.GetComponent<ShorePlayerController>(),
                 player.transform.Find("PlayerVisualRoot"),
                 boat.transform,
                 boat.transform.Find("PlayerStandPoint"),
-                boat.transform.Find("DismountPoint"),
+                dismountPoint,
                 boat.GetComponent<BoatController>(),
                 boat.GetComponent<PCBoatInput>(),
                 followCamera);

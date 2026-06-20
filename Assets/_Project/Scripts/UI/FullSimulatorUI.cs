@@ -1,11 +1,18 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using System.Collections.Generic;
 using ChoNoi.Application;
 using ChoNoi.Infrastructure;
+using ChoNoi.Presentation;
+using ChoNoi.Presentation.NPC;
+using ChoNoi.Presentation.Player;
+using UnityEngine.InputSystem.UI;
 using ChoNoiMienTay.Infrastructure;
 using ChoNoiMienTay.Presentation;
+using ChoNoiMienTay.Systems;
 using ChoNoiMienTay.UI;
+using ChoNoiMienTay.Data;
 
 namespace ChoNoi.UI
 {
@@ -26,20 +33,94 @@ namespace ChoNoi.UI
         private Text dialogueText;
         private Text npcNameText;
         private Image npcAvatar;
+        private Image playerAvatar;
+        private GameObject choicePanel;
+        private List<GameObject> choiceButtons = new List<GameObject>();
 
-        private DialogueNode currentNode;
+        // Side Prompts HUD
+        private GameObject leftPromptPanel;
+        private GameObject rightPromptPanel;
+        private Text leftPromptText;
+        private Text rightPromptText;
+
+        // UI grids for drag and drop Cây Bẹo
+        private GameObject inventoryGridParent;
+        private GameObject poleSlotsParent;
+
+        // Tab and Drag fields
+        public GameObject activeDragObject;
+        private GameObject cayBeoTabContent;
+        private GameObject khoangThuyenTabContent;
+        private GameObject khoangThuyenListParent;
+        private int activeCargoTab = 0;
+        private Button tabButton1;
+        private Button tabButton2;
+
+        // Dialogue State Machine
+        private enum DialogueState
+        {
+            Closed,
+            MerchantGreeting,
+            MerchantSelectQuantity,
+            MerchantBargaining,
+            VendorGreeting,
+            VendorTrading,
+            VendorNews
+        }
+        private DialogueState dialogueState = DialogueState.Closed;
+        private NpcTradeTarget activeNpc;
+        private ItemData selectedBargainItem;
+        private int bargainQuantity = 1;
+
+        // Drag and drop / click-to-place helper state
+        private ItemData selectedInventoryItemForPole;
+        private readonly List<GameObject> createdUIElements = new List<GameObject>();
+
+        public bool IsDialogueOpen => dialoguePanel != null && dialoguePanel.activeSelf;
 
         private void Start()
         {
+            if (bambooPoleManager == null)
+            {
+                var boat = GameObject.Find("PlayerBoat");
+                if (boat != null)
+                    bambooPoleManager = boat.GetComponent<BambooPoleManager>();
+                if (bambooPoleManager == null)
+                    bambooPoleManager = FindAnyObjectByType<BambooPoleManager>();
+            }
+            if (inventoryManager == null)
+                inventoryManager = FindAnyObjectByType<InventoryManager>();
+            if (riverMarketHUD == null)
+                riverMarketHUD = FindAnyObjectByType<RiverMarketHUD>();
+
             BuildExtraUI();
         }
 
         private void Update()
         {
+            // Detect if player is boarded
+            var boarding = FindAnyObjectByType<BoatBoardingController>();
+            bool isBoarded = boarding != null && boarding.IsBoarded;
+
+            // B key to toggle marketing panel, only available when boarded on the boat
             if (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.bKey.wasPressedThisFrame)
             {
-                ToggleMarketing();
+                if (isBoarded)
+                {
+                    ToggleMarketing();
+                }
             }
+
+            // Escape key closes dialogue or marketing
+            if (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.escapeKey.wasPressedThisFrame)
+            {
+                if (marketingPanel != null && marketingPanel.activeSelf)
+                {
+                    CloseMarketingPanel();
+                }
+            }
+
+            UpdateSidePrompts(isBoarded);
         }
 
         private void BuildExtraUI()
@@ -61,12 +142,27 @@ namespace ChoNoi.UI
                 canvasObject = canvas.gameObject;
             }
 
+            EnsureEventSystem();
+
             // Top right buttons for new features
             CreateActionButton(canvasObject.transform, "Huong Dan", new Vector2(0.66f, 0.90f), new Vector2(0.73f, 0.96f), ToggleTutorial);
             CreateActionButton(canvasObject.transform, "Cai Dat", new Vector2(0.58f, 0.90f), new Vector2(0.65f, 0.96f), ToggleSettings);
 
+            // Left & Right Prompts Panel (Middle-sides)
+            leftPromptPanel = CreatePanel("LeftPromptPanel", canvasObject.transform, new Color(0.08f, 0.08f, 0.08f, 0.85f));
+            Stretch(leftPromptPanel.GetComponent<RectTransform>(), new Vector2(0.02f, 0.45f), new Vector2(0.18f, 0.52f));
+            leftPromptText = CreateText("PromptText", leftPromptPanel.transform, 18, TextAnchor.MiddleCenter);
+            Stretch(leftPromptText.rectTransform, Vector2.zero, Vector2.one);
+            leftPromptPanel.SetActive(false);
+
+            rightPromptPanel = CreatePanel("RightPromptPanel", canvasObject.transform, new Color(0.08f, 0.08f, 0.08f, 0.85f));
+            Stretch(rightPromptPanel.GetComponent<RectTransform>(), new Vector2(0.82f, 0.45f), new Vector2(0.98f, 0.52f));
+            rightPromptText = CreateText("PromptText", rightPromptPanel.transform, 18, TextAnchor.MiddleCenter);
+            Stretch(rightPromptText.rectTransform, Vector2.zero, Vector2.one);
+            rightPromptPanel.SetActive(false);
+
             // Tutorial Panel
-            tutorialPanel = CreatePanel("TutorialPanel", canvasObject.transform, new Color(0.1f, 0.1f, 0.1f, 0.9f));
+            tutorialPanel = CreatePanel("TutorialPanel", canvasObject.transform, new Color(0.1f, 0.1f, 0.1f, 0.95f));
             Stretch(tutorialPanel.GetComponent<RectTransform>(), new Vector2(0.2f, 0.2f), new Vector2(0.8f, 0.8f));
             CreateText("Title", tutorialPanel.transform, 32, TextAnchor.MiddleCenter).text = "HUONG DAN CHOI";
             Stretch(tutorialPanel.transform.Find("Title").GetComponent<RectTransform>(), new Vector2(0.05f, 0.85f), new Vector2(0.95f, 0.95f));
@@ -80,7 +176,7 @@ namespace ChoNoi.UI
             tutorialPanel.SetActive(false);
 
             // Settings Panel
-            settingsPanel = CreatePanel("SettingsPanel", canvasObject.transform, new Color(0.1f, 0.1f, 0.2f, 0.9f));
+            settingsPanel = CreatePanel("SettingsPanel", canvasObject.transform, new Color(0.1f, 0.1f, 0.2f, 0.95f));
             Stretch(settingsPanel.GetComponent<RectTransform>(), new Vector2(0.3f, 0.3f), new Vector2(0.7f, 0.7f));
             CreateText("Title", settingsPanel.transform, 32, TextAnchor.MiddleCenter).text = "CAI DAT";
             Stretch(settingsPanel.transform.Find("Title").GetComponent<RectTransform>(), new Vector2(0.05f, 0.80f), new Vector2(0.95f, 0.95f));
@@ -89,85 +185,372 @@ namespace ChoNoi.UI
             CreateActionButton(settingsPanel.transform, "Dong", new Vector2(0.4f, 0.05f), new Vector2(0.6f, 0.2f), ToggleSettings);
             settingsPanel.SetActive(false);
 
-            // Marketing Panel (Cay Beo)
-            marketingPanel = CreatePanel("MarketingPanel", canvasObject.transform, new Color(0.15f, 0.25f, 0.15f, 0.9f));
-            Stretch(marketingPanel.GetComponent<RectTransform>(), new Vector2(0.02f, 0.08f), new Vector2(0.3f, 0.44f));
-            CreateText("Title", marketingPanel.transform, 24, TextAnchor.MiddleCenter).text = "QUAN LY CAY BEO";
-            Stretch(marketingPanel.transform.Find("Title").GetComponent<RectTransform>(), new Vector2(0.05f, 0.85f), new Vector2(0.95f, 0.95f));
-            marketingText = CreateText("Items", marketingPanel.transform, 20, TextAnchor.UpperLeft);
-            Stretch(marketingText.rectTransform, new Vector2(0.05f, 0.4f), new Vector2(0.95f, 0.8f));
-            CreateActionButton(marketingPanel.transform, "Treo Khom", new Vector2(0.05f, 0.2f), new Vector2(0.45f, 0.3f), () => HangItemByName("Khom"));
-            CreateActionButton(marketingPanel.transform, "Treo Bi Dao", new Vector2(0.55f, 0.2f), new Vector2(0.95f, 0.3f), () => HangItemByName("Bi Dao"));
-            CreateActionButton(marketingPanel.transform, "Go Tat Ca", new Vector2(0.05f, 0.05f), new Vector2(0.45f, 0.15f), ClearPole);
+            // Marketing Panel (Cargo & Cay Beo) - Stretched side-by-side drag and drop UI with tabs
+            marketingPanel = CreatePanel("MarketingPanel", canvasObject.transform, new Color(0.12f, 0.18f, 0.14f, 0.96f));
+            Stretch(marketingPanel.GetComponent<RectTransform>(), new Vector2(0.15f, 0.15f), new Vector2(0.85f, 0.85f));
+            
+            CreateText("Title", marketingPanel.transform, 28, TextAnchor.MiddleCenter).text = "QUAN LY KHOANG THUYEN & CAY BEO";
+            Stretch(marketingPanel.transform.Find("Title").GetComponent<RectTransform>(), new Vector2(0.05f, 0.90f), new Vector2(0.95f, 0.98f));
+
+            // Create Tab Buttons at the top (below title)
+            tabButton1 = CreateActionButton(marketingPanel.transform, "KHOANG THUYEN", new Vector2(0.20f, 0.81f), new Vector2(0.48f, 0.88f), () => SetCargoTab(0));
+            tabButton2 = CreateActionButton(marketingPanel.transform, "CAY BEO", new Vector2(0.52f, 0.81f), new Vector2(0.80f, 0.88f), () => SetCargoTab(1));
+
+            // 1. Khoang Thuyen Tab Content
+            khoangThuyenTabContent = CreatePanel("KhoangThuyenTabContent", marketingPanel.transform, new Color(0.08f, 0.10f, 0.12f, 0.9f));
+            Stretch(khoangThuyenTabContent.GetComponent<RectTransform>(), new Vector2(0.04f, 0.12f), new Vector2(0.96f, 0.80f));
+
+            CreateText("CargoHeader", khoangThuyenTabContent.transform, 22, TextAnchor.MiddleCenter).text = "DANH SACH NONG SAN TRONG KHOANG GHE";
+            Stretch(khoangThuyenTabContent.transform.Find("CargoHeader").GetComponent<RectTransform>(), new Vector2(0.05f, 0.88f), new Vector2(0.95f, 0.96f));
+
+            khoangThuyenListParent = new GameObject("CargoListGrid", typeof(RectTransform), typeof(VerticalLayoutGroup));
+            khoangThuyenListParent.transform.SetParent(khoangThuyenTabContent.transform, false);
+            Stretch(khoangThuyenListParent.GetComponent<RectTransform>(), new Vector2(0.05f, 0.05f), new Vector2(0.95f, 0.85f));
+            var cargoLayout = khoangThuyenListParent.GetComponent<VerticalLayoutGroup>();
+            cargoLayout.spacing = 8f;
+            cargoLayout.childControlWidth = true;
+            cargoLayout.childControlHeight = false;
+            cargoLayout.childForceExpandWidth = true;
+            cargoLayout.childForceExpandHeight = false;
+
+            // 2. Cay Beo Tab Content
+            cayBeoTabContent = new GameObject("CayBeoTabContent", typeof(RectTransform));
+            cayBeoTabContent.transform.SetParent(marketingPanel.transform, false);
+            Stretch(cayBeoTabContent.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
+
+            // Left panel for Inventory items
+            GameObject invPanel = CreatePanel("InventoryPanel", cayBeoTabContent.transform, new Color(0.08f, 0.12f, 0.10f, 0.9f));
+            Stretch(invPanel.GetComponent<RectTransform>(), new Vector2(0.04f, 0.12f), new Vector2(0.46f, 0.80f));
+            CreateText("InvHeader", invPanel.transform, 22, TextAnchor.MiddleCenter).text = "KHO HANG TREN GHE (Keo tha hoac Click chon)";
+            Stretch(invPanel.transform.Find("InvHeader").GetComponent<RectTransform>(), new Vector2(0.05f, 0.88f), new Vector2(0.95f, 0.96f));
+            
+            inventoryGridParent = new GameObject("InventoryGrid", typeof(RectTransform), typeof(VerticalLayoutGroup));
+            inventoryGridParent.transform.SetParent(invPanel.transform, false);
+            Stretch(inventoryGridParent.GetComponent<RectTransform>(), new Vector2(0.05f, 0.05f), new Vector2(0.95f, 0.85f));
+            var invLayout = inventoryGridParent.GetComponent<VerticalLayoutGroup>();
+            invLayout.spacing = 8f;
+            invLayout.childControlWidth = true;
+            invLayout.childControlHeight = false;
+            invLayout.childForceExpandWidth = true;
+            invLayout.childForceExpandHeight = false;
+
+            // Right panel for Cây Bẹo Slots
+            GameObject polePanel = CreatePanel("PolePanel", cayBeoTabContent.transform, new Color(0.18f, 0.15f, 0.10f, 0.9f));
+            Stretch(polePanel.GetComponent<RectTransform>(), new Vector2(0.54f, 0.12f), new Vector2(0.96f, 0.80f));
+            CreateText("PoleHeader", polePanel.transform, 22, TextAnchor.MiddleCenter).text = "CAY BEO (CAC MAT HANG DANG TREO)";
+            Stretch(polePanel.transform.Find("PoleHeader").GetComponent<RectTransform>(), new Vector2(0.05f, 0.88f), new Vector2(0.95f, 0.96f));
+
+            poleSlotsParent = new GameObject("PoleSlotsGrid", typeof(RectTransform), typeof(VerticalLayoutGroup));
+            poleSlotsParent.transform.SetParent(polePanel.transform, false);
+            Stretch(poleSlotsParent.GetComponent<RectTransform>(), new Vector2(0.05f, 0.05f), new Vector2(0.95f, 0.85f));
+            var poleLayout = poleSlotsParent.GetComponent<VerticalLayoutGroup>();
+            poleLayout.spacing = 8f;
+            poleLayout.childControlWidth = true;
+            poleLayout.childControlHeight = false;
+            poleLayout.childForceExpandWidth = true;
+            poleLayout.childForceExpandHeight = false;
+
+            // Instructions text at bottom of marketing
+            marketingText = CreateText("Instructions", marketingPanel.transform, 18, TextAnchor.MiddleCenter);
+            marketingText.text = "Keo tha hang tu Kho sang Cay Beo. Click vao o Cay Beo co chu Go de tháo dõ.";
+            Stretch(marketingText.rectTransform, new Vector2(0.05f, 0.02f), new Vector2(0.6f, 0.10f));
+
+            CreateActionButton(marketingPanel.transform, "Go Tat Ca", new Vector2(0.65f, 0.03f), new Vector2(0.78f, 0.09f), ClearPole);
+            CreateActionButton(marketingPanel.transform, "Dong", new Vector2(0.82f, 0.03f), new Vector2(0.95f, 0.09f), CloseMarketingPanel);
             marketingPanel.SetActive(false);
 
-            // Dialogue Panel
-            dialoguePanel = CreatePanel("DialoguePanel", canvasObject.transform, new Color(0.1f, 0.1f, 0.1f, 0.95f));
-            Stretch(dialoguePanel.GetComponent<RectTransform>(), new Vector2(0.2f, 0.05f), new Vector2(0.8f, 0.35f));
-            npcAvatar = CreateImage("Avatar", dialoguePanel.transform, Color.white);
-            Stretch(npcAvatar.rectTransform, new Vector2(0.02f, 0.1f), new Vector2(0.18f, 0.9f));
-            npcNameText = CreateText("Name", dialoguePanel.transform, 24, TextAnchor.MiddleLeft);
-            Stretch(npcNameText.rectTransform, new Vector2(0.2f, 0.75f), new Vector2(0.95f, 0.95f));
-            dialogueText = CreateText("Dialogue", dialoguePanel.transform, 22, TextAnchor.UpperLeft);
-            Stretch(dialogueText.rectTransform, new Vector2(0.2f, 0.3f), new Vector2(0.95f, 0.7f));
+            // Dialogue Panel (Visual Novel style at the bottom center)
+            dialoguePanel = CreatePanel("DialoguePanel", canvasObject.transform, new Color(0f, 0f, 0f, 0.65f));
+            Stretch(dialoguePanel.GetComponent<RectTransform>(), new Vector2(0.15f, 0.05f), new Vector2(0.85f, 0.22f));
 
-            CreateActionButton(dialoguePanel.transform, "Noi Ngot (-10 TL)", new Vector2(0.2f, 0.05f), new Vector2(0.4f, 0.25f), () => HandleDialogueAction(DialogueAction.Haggle));
-            CreateActionButton(dialoguePanel.transform, "Tang Qua", new Vector2(0.45f, 0.05f), new Vector2(0.65f, 0.25f), () => HandleDialogueAction(DialogueAction.GiveGift));
-            CreateActionButton(dialoguePanel.transform, "Thoat", new Vector2(0.7f, 0.05f), new Vector2(0.9f, 0.25f), CloseDialogue);
+            // NPC Avatar (left)
+            npcAvatar = CreateImage("NpcAvatar", dialoguePanel.transform, Color.white);
+            Stretch(npcAvatar.rectTransform, new Vector2(0.02f, 0.12f), new Vector2(0.14f, 0.88f));
+
+            // Player Avatar (right)
+            playerAvatar = CreateImage("PlayerAvatar", dialoguePanel.transform, Color.white);
+            Stretch(playerAvatar.rectTransform, new Vector2(0.86f, 0.12f), new Vector2(0.98f, 0.88f));
+
+            npcNameText = CreateText("Name", dialoguePanel.transform, 20, TextAnchor.MiddleLeft);
+            npcNameText.color = new Color(0.92f, 0.82f, 0.55f, 1f); // Gold color for name
+            Stretch(npcNameText.rectTransform, new Vector2(0.16f, 0.65f), new Vector2(0.84f, 0.90f));
+
+            dialogueText = CreateText("Dialogue", dialoguePanel.transform, 18, TextAnchor.UpperLeft);
+            Stretch(dialogueText.rectTransform, new Vector2(0.16f, 0.08f), new Vector2(0.84f, 0.60f));
+
+            // Dialogue choices panel (positioned on the right side and above the dialogue box)
+            choicePanel = new GameObject("ChoicePanel", typeof(RectTransform), typeof(VerticalLayoutGroup));
+            choicePanel.transform.SetParent(canvasObject.transform, false);
+            Stretch(choicePanel.GetComponent<RectTransform>(), new Vector2(0.60f, 0.25f), new Vector2(0.95f, 0.70f));
+            var choiceLayout = choicePanel.GetComponent<VerticalLayoutGroup>();
+            choiceLayout.spacing = 10f;
+            choiceLayout.childControlWidth = true;
+            choiceLayout.childControlHeight = false;
+            choiceLayout.childForceExpandWidth = true;
+            choiceLayout.childForceExpandHeight = false;
+            choicePanel.SetActive(false);
+
             dialoguePanel.SetActive(false);
         }
 
         private void ToggleTutorial() => tutorialPanel.SetActive(!tutorialPanel.activeSelf);
         private void ToggleSettings() => settingsPanel.SetActive(!settingsPanel.activeSelf);
-        
+
+        private void SetCargoTab(int tab)
+        {
+            activeCargoTab = tab;
+            RefreshMarketing();
+        }
+
         public void ToggleMarketing()
         {
             if (marketingPanel == null) return;
             marketingPanel.SetActive(!marketingPanel.activeSelf);
-            if (marketingPanel.activeSelf) RefreshMarketing();
+            
+            var boarding = FindAnyObjectByType<BoatBoardingController>();
+            if (marketingPanel.activeSelf)
+            {
+                activeCargoTab = 0;
+                RefreshMarketing();
+                Cursor.visible = true;
+                Cursor.lockState = CursorLockMode.None;
+
+                if (boarding != null && boarding.IsBoarded)
+                    boarding.SetBoatControlActive(false);
+            }
+            else
+            {
+                if (activeDragObject != null)
+                {
+                    Destroy(activeDragObject);
+                    activeDragObject = null;
+                }
+                if (boarding != null && boarding.IsBoarded)
+                    boarding.SetBoatControlActive(true);
+            }
         }
 
         public void OpenMarketingPanel()
         {
             if (marketingPanel != null && !marketingPanel.activeSelf)
             {
-                marketingPanel.SetActive(true);
-                RefreshMarketing();
+                ToggleMarketing();
             }
         }
 
         public void CloseMarketingPanel()
         {
-            if (marketingPanel != null)
-                marketingPanel.SetActive(false);
+            if (marketingPanel != null && marketingPanel.activeSelf)
+            {
+                if (activeDragObject != null)
+                {
+                    Destroy(activeDragObject);
+                    activeDragObject = null;
+                }
+                ToggleMarketing();
+            }
         }
 
         private void RefreshMarketing()
         {
-            if (bambooPoleManager == null)
+            if (bambooPoleManager == null || inventoryManager == null) return;
+
+            if (activeDragObject != null)
             {
-                marketingText.text = "Khong tim thay BambooPoleManager.";
-                return;
+                Destroy(activeDragObject);
+                activeDragObject = null;
             }
 
-            marketingText.text = $"Dang treo: {bambooPoleManager.DisplayedItems.Count} / {bambooPoleManager.MaxDisplayedItems}\n\n";
-            foreach (var item in bambooPoleManager.DisplayedItems)
+            if (tabButton1 != null && tabButton2 != null)
             {
-                marketingText.text += $"- {item.itemName}\n";
+                tabButton1.GetComponent<Image>().color = activeCargoTab == 0 ? new Color(0.86f, 0.73f, 0.46f, 1f) : new Color(0.2f, 0.4f, 0.6f, 1f);
+                tabButton1.transform.Find("Label").GetComponent<Text>().color = activeCargoTab == 0 ? Color.black : Color.white;
+
+                tabButton2.GetComponent<Image>().color = activeCargoTab == 1 ? new Color(0.86f, 0.73f, 0.46f, 1f) : new Color(0.2f, 0.4f, 0.6f, 1f);
+                tabButton2.transform.Find("Label").GetComponent<Text>().color = activeCargoTab == 1 ? Color.black : Color.white;
+            }
+
+            if (khoangThuyenTabContent != null) khoangThuyenTabContent.SetActive(activeCargoTab == 0);
+            if (cayBeoTabContent != null) cayBeoTabContent.SetActive(activeCargoTab == 1);
+
+            // Clear previously created visual items
+            foreach (var elem in createdUIElements)
+            {
+                if (elem != null) Destroy(elem);
+            }
+            createdUIElements.Clear();
+
+            if (activeCargoTab == 0)
+            {
+                // Tab 1: Khoang Thuyen
+                foreach (var kvp in inventoryManager.Inventory)
+                {
+                    ItemData item = kvp.Key;
+                    int count = kvp.Value;
+                    if (count <= 0) continue;
+
+                    GameObject slot = CreatePanel($"CargoItem_{item.itemID}", khoangThuyenListParent.transform, new Color(0.15f, 0.20f, 0.25f, 1f));
+                    createdUIElements.Add(slot);
+                    var le = slot.AddComponent<LayoutElement>();
+                    le.preferredHeight = 65f;
+
+                    Text nameText = CreateText("NameText", slot.transform, 20, TextAnchor.MiddleLeft);
+                    nameText.text = $" <b>{item.itemName}</b> (x{count})";
+                    Stretch(nameText.rectTransform, new Vector2(0.02f, 0f), new Vector2(0.40f, 1f));
+
+                    Text weightText = CreateText("WeightText", slot.transform, 18, TextAnchor.MiddleLeft);
+                    weightText.text = $"Cân nặng: {item.weight * count:0.0}kg ({item.weight:0.0}kg/sp)";
+                    Stretch(weightText.rectTransform, new Vector2(0.42f, 0f), new Vector2(0.68f, 1f));
+
+                    Text priceText = CreateText("PriceText", slot.transform, 18, TextAnchor.MiddleLeft);
+                    int sellPrice = GetSalePriceOnVendor(item);
+                    priceText.text = $"Giá sỉ: {item.basePrice:N0}đ\nGiá bán lẻ: {sellPrice:N0}đ";
+                    Stretch(priceText.rectTransform, new Vector2(0.70f, 0f), new Vector2(0.98f, 1f));
+                }
+            }
+            else
+            {
+                // Tab 2: Cay Beo
+                // 1. Build Inventory Grid (Left)
+                foreach (var kvp in inventoryManager.Inventory)
+                {
+                    ItemData item = kvp.Key;
+                    int count = kvp.Value;
+                    if (count <= 0) continue;
+
+                    GameObject slot = CreatePanel($"InvItem_{item.itemID}", inventoryGridParent.transform, new Color(0.20f, 0.26f, 0.22f, 1f));
+                    createdUIElements.Add(slot);
+                    var le = slot.AddComponent<LayoutElement>();
+                    le.preferredHeight = 60f;
+
+                    Text label = CreateText("Label", slot.transform, 20, TextAnchor.MiddleLeft);
+                    label.text = $" {item.itemName} (x{count}) - {item.weight:0.0}kg";
+                    Stretch(label.rectTransform, new Vector2(0.05f, 0f), new Vector2(0.95f, 1f));
+
+                    // Highlighting if selected
+                    if (selectedInventoryItemForPole == item)
+                    {
+                        slot.GetComponent<Image>().color = new Color(0.88f, 0.71f, 0.34f, 1f);
+                        label.color = Color.black;
+                    }
+
+                    // Add drag handler & click handlers
+                    var drag = slot.AddComponent<UIDragHandler>();
+                    drag.item = item;
+                    drag.parentUI = this;
+                }
+
+                // 2. Build Pole Slots (Right)
+                int maxSlots = bambooPoleManager.MaxDisplayedItems;
+                List<ItemData> displayed = bambooPoleManager.DisplayedItems;
+
+                for (int i = 0; i < maxSlots; i++)
+                {
+                    int index = i;
+                    bool isOccupied = index < displayed.Count;
+
+                    GameObject slot = CreatePanel($"PoleSlot_{index}", poleSlotsParent.transform, 
+                        isOccupied ? new Color(0.28f, 0.22f, 0.16f, 1f) : new Color(0.12f, 0.12f, 0.12f, 0.8f));
+                    createdUIElements.Add(slot);
+                    var le = slot.AddComponent<LayoutElement>();
+                    le.preferredHeight = 60f;
+
+                    // Add drop handler for slot
+                    var slotHandler = slot.AddComponent<UIPoleSlotHandler>();
+                    slotHandler.slotIndex = index;
+                    slotHandler.parentUI = this;
+
+                    Text label = CreateText("Label", slot.transform, 20, TextAnchor.MiddleLeft);
+                    label.text = isOccupied ? $" Slot {index + 1}: {displayed[index].itemName}" : $" Slot {index + 1}: [Trong] - Keo tha vao day";
+                    Stretch(label.rectTransform, new Vector2(0.05f, 0f), new Vector2(0.70f, 1f));
+
+                    if (isOccupied)
+                    {
+                        ItemData item = displayed[index];
+                        // Add a Remove [X] button
+                        GameObject removeBtn = new GameObject("RemoveBtn", typeof(RectTransform), typeof(Image), typeof(Button));
+                        removeBtn.transform.SetParent(slot.transform, false);
+                        Stretch(removeBtn.GetComponent<RectTransform>(), new Vector2(0.75f, 0.15f), new Vector2(0.95f, 0.85f));
+                        removeBtn.GetComponent<Image>().color = new Color(0.8f, 0.2f, 0.2f, 1f);
+                        
+                        Text btnTxt = CreateText("Label", removeBtn.transform, 18, TextAnchor.MiddleCenter);
+                        btnTxt.text = "Go";
+                        Stretch(btnTxt.rectTransform, Vector2.zero, Vector2.one);
+
+                        Button btn = removeBtn.GetComponent<Button>();
+                        btn.onClick.AddListener(() =>
+                        {
+                            bambooPoleManager.RemoveItem(item);
+                            RefreshMarketing();
+                        });
+                    }
+                }
             }
         }
 
-        private void HangItemByName(string name)
+        public void HandleItemClicked(ItemData item)
         {
-            if (inventoryManager == null || bambooPoleManager == null) return;
-            foreach (var kvp in inventoryManager.Inventory)
+            selectedInventoryItemForPole = item;
+            RefreshMarketing();
+        }
+
+        public void HandleSlotClicked(int slotIndex)
+        {
+            if (bambooPoleManager == null) return;
+
+            if (selectedInventoryItemForPole != null)
             {
-                if (kvp.Key.itemName.Contains(name))
+                // Try to replace the item
+                List<ItemData> displayed = bambooPoleManager.DisplayedItems;
+                if (slotIndex < displayed.Count)
                 {
-                    bambooPoleManager.HangItem(kvp.Key);
-                    RefreshMarketing();
-                    return;
+                    bambooPoleManager.RemoveItem(displayed[slotIndex]);
                 }
+                bambooPoleManager.HangItem(selectedInventoryItemForPole);
+                selectedInventoryItemForPole = null;
+                RefreshMarketing();
+            }
+            else
+            {
+                // If clicked an occupied slot without item selected, remove it
+                List<ItemData> displayed = bambooPoleManager.DisplayedItems;
+                if (slotIndex < displayed.Count)
+                {
+                    bambooPoleManager.RemoveItem(displayed[slotIndex]);
+                    RefreshMarketing();
+                }
+            }
+        }
+
+        public void HandleItemDropped(ItemData item, Vector2 screenPos)
+        {
+            // Drop anywhere outside
+            // Check if dropped inside pole slots area
+            Canvas canvas = GetComponentInParent<Canvas>();
+            if (canvas == null || poleSlotsParent == null) return;
+
+            RectTransform rect = poleSlotsParent.GetComponent<RectTransform>();
+            if (RectTransformUtility.RectangleContainsScreenPoint(rect, screenPos, canvas.worldCamera))
+            {
+                if (bambooPoleManager != null && !bambooPoleManager.DisplayedItems.Contains(item))
+                {
+                    bambooPoleManager.HangItem(item);
+                    RefreshMarketing();
+                }
+            }
+        }
+
+        public void HandleItemDroppedOnSlot(ItemData item, int slotIndex)
+        {
+            if (bambooPoleManager != null)
+            {
+                List<ItemData> displayed = bambooPoleManager.DisplayedItems;
+                if (slotIndex < displayed.Count)
+                {
+                    bambooPoleManager.RemoveItem(displayed[slotIndex]);
+                }
+                bambooPoleManager.HangItem(item);
+                RefreshMarketing();
             }
         }
 
@@ -180,45 +563,628 @@ namespace ChoNoi.UI
             }
         }
 
-        public void OpenDialogue(DialogueData data)
+        // ==========================================
+        // PROCEDURAL DIALOGUE & INTERACTION SYSTEM
+        // ==========================================
+        
+        public void OpenBargainDialogue(NpcTradeTarget npc)
         {
-            if (data == null || data.nodes.Count == 0) return;
+            activeNpc = npc;
+            dialogueState = DialogueState.MerchantGreeting;
+            selectedBargainItem = null;
+
             dialoguePanel.SetActive(true);
-            npcAvatar.sprite = data.npcAvatar;
-            PlayNode(data.GetNode(data.initialNodeId) ?? data.nodes[0]);
+            Cursor.visible = true;
+            Cursor.lockState = CursorLockMode.None;
+
+            UpdateDialogueUI();
         }
 
-        private void PlayNode(DialogueNode node)
+        public void OpenTradeDialogue(NpcTradeTarget npc)
         {
-            if (node == null)
+            activeNpc = npc;
+            dialogueState = DialogueState.VendorGreeting;
+
+            dialoguePanel.SetActive(true);
+            Cursor.visible = true;
+            Cursor.lockState = CursorLockMode.None;
+
+            UpdateDialogueUI();
+        }
+
+        public void CloseAllDialogueAndPanels()
+        {
+            dialogueState = DialogueState.Closed;
+            if (dialoguePanel != null) dialoguePanel.SetActive(false);
+            if (choicePanel != null) choicePanel.SetActive(false);
+            
+            // Clean up choice buttons
+            ClearChoicePanel();
+        }
+
+        private void ClearChoicePanel()
+        {
+            foreach (var btn in choiceButtons)
             {
-                CloseDialogue();
+                if (btn != null) Destroy(btn);
+            }
+            choiceButtons.Clear();
+            if (choicePanel != null) choicePanel.SetActive(false);
+        }
+
+        private void UpdateDialogueUI()
+        {
+            if (activeNpc == null)
+            {
+                CloseAllDialogueAndPanels();
                 return;
             }
-            currentNode = node;
-            npcNameText.text = node.speakerName;
-            dialogueText.text = node.dialogueText;
-        }
 
-        private void HandleDialogueAction(DialogueAction action)
-        {
-            // Simple mock for Dialogue interaction
-            if (action == DialogueAction.Haggle)
+            ClearChoicePanel();
+            choicePanel.SetActive(true);
+
+            Sprite npcAvatarSprite = GetNpcAvatar(activeNpc);
+            Sprite playerAvatarSprite = GetPlayerAvatar();
+
+            npcAvatar.sprite = npcAvatarSprite;
+            npcAvatar.color = npcAvatarSprite != null ? Color.white : new Color(1f, 1f, 1f, 0.15f);
+
+            playerAvatar.sprite = playerAvatarSprite;
+            playerAvatar.color = playerAvatarSprite != null ? Color.white : new Color(1f, 1f, 1f, 0.15f);
+
+            // Fetch bargaining system
+            BargainingSystem bargainingSystem = FindAnyObjectByType<BargainingSystem>();
+
+            switch (dialogueState)
             {
-                dialogueText.text = "Ban da noi ngot. NPC rat vui va giam gia nhe!";
-            }
-            else if (action == DialogueAction.GiveGift)
-            {
-                dialogueText.text = "Ban da tang qua. Thien cam tang vut!";
+                case DialogueState.MerchantGreeting:
+                    npcNameText.text = activeNpc.NpcDisplayName;
+                    dialogueText.text = "Chào ngày mới! Ghe chú em hôm nay mang gì đến để bán sỉ thế?";
+                    
+                    // Highlight NPC avatar, dim player
+                    npcAvatar.color = Color.white;
+                    playerAvatar.color = new Color(1f, 1f, 1f, 0.4f);
+
+                    int mIndex = 1;
+                    // Generate choices of items in inventory
+                    if (inventoryManager != null)
+                    {
+                        foreach (var kvp in inventoryManager.Inventory)
+                        {
+                            ItemData item = kvp.Key;
+                            int count = kvp.Value;
+                            if (count <= 0) continue;
+
+                            CreateChoiceButton($"{mIndex++}. Bán sỉ {item.itemName} (Đang có {count})", () =>
+                            {
+                                selectedBargainItem = item;
+                                bargainQuantity = 1; // Default starting quantity
+                                if (bargainingSystem != null)
+                                {
+                                    bargainingSystem.SelectInventoryItem(item);
+                                }
+                                dialogueState = DialogueState.MerchantSelectQuantity;
+                                UpdateDialogueUI();
+                            });
+                        }
+                    }
+
+                    CreateChoiceButton($"{mIndex++}. Tạm biệt", CloseDialogueAndReleasePlayer);
+                    break;
+
+                case DialogueState.MerchantSelectQuantity:
+                    if (selectedBargainItem == null)
+                    {
+                        dialogueState = DialogueState.MerchantGreeting;
+                        UpdateDialogueUI();
+                        return;
+                    }
+
+                    int totalAvailable = inventoryManager != null && inventoryManager.Inventory.TryGetValue(selectedBargainItem, out int amt) ? amt : 0;
+                    npcNameText.text = activeNpc.NpcDisplayName;
+                    dialogueText.text = $"Bạn muốn bán sỉ bao nhiêu quả {selectedBargainItem.itemName}? (Có {totalAvailable} quả trên ghe).";
+
+                    npcAvatar.color = Color.white;
+                    playerAvatar.color = new Color(1f, 1f, 1f, 0.4f);
+
+                    CreateChoiceButton($"Đang chọn: {bargainQuantity} quả", () => {});
+
+                    int qIndex = 1;
+                    if (bargainQuantity < totalAvailable)
+                    {
+                        CreateChoiceButton($"{qIndex++}. Tăng số lượng (+1)", () =>
+                        {
+                            bargainQuantity = Mathf.Min(bargainQuantity + 1, totalAvailable);
+                            UpdateDialogueUI();
+                        });
+                        if (totalAvailable >= 5 && bargainQuantity + 5 <= totalAvailable)
+                        {
+                            CreateChoiceButton($"{qIndex++}. Tăng số lượng (+5)", () =>
+                            {
+                                bargainQuantity = Mathf.Min(bargainQuantity + 5, totalAvailable);
+                                UpdateDialogueUI();
+                            });
+                        }
+                    }
+
+                    if (bargainQuantity > 1)
+                    {
+                        CreateChoiceButton($"{qIndex++}. Giảm số lượng (-1)", () =>
+                        {
+                            bargainQuantity = Mathf.Max(bargainQuantity - 1, 1);
+                            UpdateDialogueUI();
+                        });
+                        if (bargainQuantity - 5 >= 1)
+                        {
+                            CreateChoiceButton($"{qIndex++}. Giảm số lượng (-5)", () =>
+                            {
+                                bargainQuantity = Mathf.Max(bargainQuantity - 5, 1);
+                                UpdateDialogueUI();
+                            });
+                        }
+                    }
+
+                    if (totalAvailable > 1 && bargainQuantity != totalAvailable)
+                    {
+                        CreateChoiceButton($"{qIndex++}. Bán tất cả ({totalAvailable} quả)", () =>
+                        {
+                            bargainQuantity = totalAvailable;
+                            UpdateDialogueUI();
+                        });
+                    }
+
+                    CreateChoiceButton($"{qIndex++}. Bắt đầu mặc cả {bargainQuantity} quả", () =>
+                    {
+                        if (bargainingSystem != null)
+                        {
+                            bargainingSystem.StartSession(GetMerchantProfile(activeNpc), bargainQuantity);
+                        }
+                        dialogueState = DialogueState.MerchantBargaining;
+                        UpdateDialogueUI();
+                    });
+
+                    CreateChoiceButton($"{qIndex++}. Quay lại", () =>
+                    {
+                        dialogueState = DialogueState.MerchantGreeting;
+                        UpdateDialogueUI();
+                    });
+                    break;
+
+                case DialogueState.MerchantBargaining:
+                    if (bargainingSystem == null || !bargainingSystem.HasActiveSession)
+                    {
+                        dialogueState = DialogueState.MerchantGreeting;
+                        UpdateDialogueUI();
+                        return;
+                    }
+
+                    npcNameText.text = activeNpc.NpcDisplayName;
+                    dialogueText.text = bargainingSystem.CurrentMessage;
+
+                    // Highlight NPC or player based on latest action
+                    npcAvatar.color = Color.white;
+                    playerAvatar.color = new Color(1f, 1f, 1f, 0.4f);
+
+                    int bIndex = 1;
+                    CreateChoiceButton($"{bIndex++}. Nói ngọt Đòi Tăng Giá (+{bargainingSystem.EconomyConfig.OfferStep:N0} VNĐ)", () =>
+                    {
+                        // Player action -> Highlight player
+                        playerAvatar.color = Color.white;
+                        npcAvatar.color = new Color(1f, 1f, 1f, 0.4f);
+
+                        bargainingSystem.AdjustOffer(1);
+                        UpdateDialogueUI();
+                    });
+
+                    CreateChoiceButton($"{bIndex++}. Tôn hàng Giảm Giá Đòi (-{bargainingSystem.EconomyConfig.OfferStep:N0} VNĐ)", () =>
+                    {
+                        playerAvatar.color = Color.white;
+                        npcAvatar.color = new Color(1f, 1f, 1f, 0.4f);
+
+                        bargainingSystem.AdjustOffer(-1);
+                        UpdateDialogueUI();
+                    });
+
+                    CreateChoiceButton($"{bIndex++}. Chốt kèo! (Bán ngay {bargainingSystem.BargainQuantity} quả)", () =>
+                    {
+                        if (bargainingSystem.TryAcceptDeal())
+                        {
+                            // Deal accepted successfully
+                            dialogueState = DialogueState.MerchantGreeting;
+                        }
+                        UpdateDialogueUI();
+                    });
+
+                    CreateChoiceButton($"{bIndex++}. Không bán nữa", () =>
+                    {
+                        bargainingSystem.RejectDeal();
+                        dialogueState = DialogueState.MerchantGreeting;
+                        UpdateDialogueUI();
+                    });
+                    break;
+
+                case DialogueState.VendorGreeting:
+                    npcNameText.text = activeNpc.NpcDisplayName;
+                    dialogueText.text = "Bun rieu ca phe nong hoi day! Co ca sua ghe luon, chu em dung gi nao?";
+
+                    npcAvatar.color = Color.white;
+                    playerAvatar.color = new Color(1f, 1f, 1f, 0.4f);
+
+                    int vIndex = 1;
+                    CreateChoiceButton($"{vIndex++}. An to bun nuoc leo (Hoi the luc - 8,000 VNĐ)", () =>
+                    {
+                        RestoreStaminaOnVendor();
+                        UpdateDialogueUI();
+                    });
+
+                    int repairCost = GetRepairCostOnVendor();
+                    CreateChoiceButton($"{vIndex++}. Sua ghe xom nuoc (Hoi do ben - {repairCost:N0} VNĐ)", () =>
+                    {
+                        RepairBoatOnVendor();
+                        UpdateDialogueUI();
+                    });
+
+                    CreateChoiceButton($"{vIndex++}. Giao thuong nong san", () =>
+                    {
+                        dialogueState = DialogueState.VendorTrading;
+                        UpdateDialogueUI();
+                    });
+
+                    CreateChoiceButton($"{vIndex++}. Hoi tham tin tuc thi truong", () =>
+                    {
+                        dialogueState = DialogueState.VendorNews;
+                        UpdateDialogueUI();
+                    });
+
+                    CreateChoiceButton($"{vIndex++}. Nghi ngoi den sang (Ngu)", () =>
+                    {
+                        SleepOnVendor();
+                    });
+
+                    CreateChoiceButton($"{vIndex++}. Tam biet", CloseDialogueAndReleasePlayer);
+                    break;
+
+                case DialogueState.VendorTrading:
+                    npcNameText.text = activeNpc.NpcDisplayName;
+                    dialogueText.text = "Giao dich cac mat hang nong san le o day. Chu em muon mua hay ban?";
+
+                    npcAvatar.color = Color.white;
+                    playerAvatar.color = new Color(1f, 1f, 1f, 0.4f);
+
+                    int vtIndex = 1;
+                    // List market items configured on HUD
+                    if (riverMarketHUD != null)
+                    {
+                        // Retrieve items lists from HUD
+                        var items = GetMarketItemsList();
+                        foreach (var item in items)
+                        {
+                            int buyPrice = item.basePrice;
+                            int sellPrice = GetSalePriceOnVendor(item);
+                            int owned = inventoryManager != null && inventoryManager.Inventory.TryGetValue(item, out int count) ? count : 0;
+
+                            // Option to Buy
+                            CreateChoiceButton($"{vtIndex++}. Mua 1 {item.itemName} (-{buyPrice:N0} VNĐ) [Dang co {owned}]", () =>
+                            {
+                                BuyItemOnVendor(item);
+                                UpdateDialogueUI();
+                            });
+
+                            // Option to Sell (only if owned > 0)
+                            if (owned > 0)
+                            {
+                                CreateChoiceButton($"{vtIndex++}. Ban 1 {item.itemName} (+{sellPrice:N0} VNĐ)", () =>
+                                {
+                                    SellItemOnVendor(item);
+                                    UpdateDialogueUI();
+                                });
+                            }
+                        }
+                    }
+
+                    CreateChoiceButton($"{vtIndex++}. Quay lai", () =>
+                    {
+                        dialogueState = DialogueState.VendorGreeting;
+                        UpdateDialogueUI();
+                    });
+                    break;
+
+                case DialogueState.VendorNews:
+                    npcNameText.text = activeNpc.NpcDisplayName;
+                    
+                    string rumor = "Hien tai chua co tin tuc nong nao duoc chia se.";
+                    var newsController = FindAnyObjectByType<MarketNewsController>();
+                    if (newsController != null && newsController.CurrentNews != null)
+                    {
+                        rumor = $"[TIN DON]: {newsController.CurrentNews.headline}\n\n\"{newsController.CurrentNews.marketRumor}\"";
+                    }
+                    dialogueText.text = rumor;
+
+                    npcAvatar.color = Color.white;
+                    playerAvatar.color = new Color(1f, 1f, 1f, 0.4f);
+
+                    CreateChoiceButton("1. Cam on thong tin!", () =>
+                    {
+                        dialogueState = DialogueState.VendorGreeting;
+                        UpdateDialogueUI();
+                    });
+                    break;
             }
         }
 
-        private void CloseDialogue()
+        private void CreateChoiceButton(string choiceText, UnityEngine.Events.UnityAction onClick)
         {
-            dialoguePanel.SetActive(false);
+            GameObject btnObj = new GameObject(choiceText, typeof(RectTransform), typeof(Image), typeof(Button));
+            btnObj.transform.SetParent(choicePanel.transform, false);
+            
+            // Layout element for preferred size
+            var le = btnObj.AddComponent<LayoutElement>();
+            le.preferredHeight = 50f;
+
+            Image img = btnObj.GetComponent<Image>();
+            img.color = new Color(0.08f, 0.08f, 0.08f, 0.85f);
+
+            Button btn = btnObj.GetComponent<Button>();
+            ColorBlock colors = btn.colors;
+            colors.highlightedColor = new Color(0.2f, 0.2f, 0.2f, 0.95f);
+            colors.pressedColor = new Color(0.3f, 0.3f, 0.3f, 0.95f);
+            colors.disabledColor = new Color(0.1f, 0.1f, 0.1f, 0.5f);
+            btn.colors = colors;
+
+            btn.onClick.AddListener(onClick);
+
+            Text text = CreateText("Label", btnObj.transform, 18, TextAnchor.MiddleLeft);
+            text.text = choiceText;
+            text.color = new Color(0.92f, 0.82f, 0.55f, 1f);
+            Stretch(text.rectTransform, new Vector2(0.05f, 0f), new Vector2(0.95f, 1f));
+
+            choiceButtons.Add(btnObj);
         }
 
-        // Helpers
+        private void CloseDialogueAndReleasePlayer()
+        {
+            CloseAllDialogueAndPanels();
+            
+            var interactor = FindAnyObjectByType<PlayerNpcTradeInteractor>();
+            if (interactor != null)
+            {
+                interactor.CloseTrade();
+            }
+        }
+
+        private Sprite GetNpcAvatar(NpcTradeTarget npc)
+        {
+            // First check config for matching avatar
+            var config = FindAnyObjectByType<BargainingSystem>()?.EconomyConfig;
+            if (config != null)
+            {
+                foreach (var profile in config.NpcProfiles)
+                {
+                    if (profile.displayName == npc.NpcDisplayName || npc.name.Contains(profile.npcId))
+                        return profile.avatar;
+                }
+            }
+
+            // Fallback to news databases
+            var newsController = FindAnyObjectByType<MarketNewsController>();
+            if (newsController != null && newsController.CurrentNews != null && newsController.CurrentNews.npcName == npc.NpcDisplayName)
+            {
+                return newsController.CurrentNews.npcAvatar;
+            }
+
+            return null;
+        }
+
+        private Sprite GetPlayerAvatar()
+        {
+            var config = FindAnyObjectByType<BargainingSystem>()?.EconomyConfig;
+            if (config != null && config.NpcProfiles.Count > 0)
+            {
+                foreach (var profile in config.NpcProfiles)
+                {
+                    if (profile.npcId.ToLower().Contains("villager") || profile.npcId.ToLower().Contains("dan"))
+                        return profile.avatar;
+                }
+                return config.NpcProfiles[0].avatar;
+            }
+            return null;
+        }
+
+        private BargainingNpcProfile GetMerchantProfile(NpcTradeTarget npc)
+        {
+            var config = FindAnyObjectByType<BargainingSystem>()?.EconomyConfig;
+            if (config != null)
+            {
+                foreach (var profile in config.NpcProfiles)
+                {
+                    if (profile.displayName == npc.NpcDisplayName || npc.name.Contains(profile.npcId))
+                        return profile;
+                }
+                if (config.NpcProfiles.Count > 0) return config.NpcProfiles[0];
+            }
+            return null;
+        }
+
+        // ==========================================
+        // VENDOR OPERATIONS fallbacks
+        // ==========================================
+        private int GetRepairCostOnVendor()
+        {
+            var durability = FindAnyObjectByType<DurabilityManager>();
+            if (durability == null) return 12000;
+            float missing = durability.MaxDurability - durability.CurrentDurability;
+            return 6000 + Mathf.RoundToInt(missing * 220f);
+        }
+
+        private void RepairBoatOnVendor()
+        {
+            var economy = FindAnyObjectByType<EconomyManager>();
+            var durability = FindAnyObjectByType<DurabilityManager>();
+            if (economy == null || durability == null) return;
+
+            int cost = GetRepairCostOnVendor();
+            ServiceData repair = ScriptableObject.CreateInstance<ServiceData>();
+            repair.serviceName = "Sua Ghe";
+            repair.costMoney = cost;
+            repair.durabilityRestoreAmount = 18f;
+            economy.BuyService(repair);
+            Destroy(repair);
+        }
+
+        private void RestoreStaminaOnVendor()
+        {
+            var economy = FindAnyObjectByType<EconomyManager>();
+            if (economy == null) return;
+
+            ServiceData meal = ScriptableObject.CreateInstance<ServiceData>();
+            meal.serviceName = "Bun Nuoc Leo";
+            meal.costMoney = 8000;
+            meal.staminaRestoreAmount = 18f;
+            economy.BuyService(meal);
+            Destroy(meal);
+        }
+
+        private void SleepOnVendor()
+        {
+            var time = FindAnyObjectByType<TimeManager>();
+            if (time != null)
+            {
+                time.Sleep();
+            }
+            CloseDialogueAndReleasePlayer();
+        }
+
+        private List<ItemData> GetMarketItemsList()
+        {
+            if (riverMarketHUD != null)
+            {
+                // Access serialised field marketItems via reflection
+                var field = typeof(RiverMarketHUD).GetField("marketItems", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (field != null)
+                {
+                    var val = field.GetValue(riverMarketHUD) as List<ItemData>;
+                    if (val != null) return val;
+                }
+            }
+            return new List<ItemData>();
+        }
+
+        private int GetSalePriceOnVendor(ItemData item)
+        {
+            if (riverMarketHUD != null)
+            {
+                var method = typeof(RiverMarketHUD).GetMethod("GetSaleMultiplier", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (method != null)
+                {
+                    float mult = (float)method.Invoke(riverMarketHUD, new object[] { item });
+                    return Mathf.RoundToInt(item.basePrice * mult);
+                }
+            }
+            return Mathf.RoundToInt(item.basePrice * 1.05f);
+        }
+
+        private void BuyItemOnVendor(ItemData item)
+        {
+            var economy = FindAnyObjectByType<EconomyManager>();
+            if (economy != null && inventoryManager != null)
+            {
+                economy.BuyItemToInventory(item, 1, inventoryManager);
+            }
+        }
+
+        private void SellItemOnVendor(ItemData item)
+        {
+            var economy = FindAnyObjectByType<EconomyManager>();
+            if (economy != null && inventoryManager != null)
+            {
+                int finalRevenue = GetSalePriceOnVendor(item);
+                economy.SellItemWholesale(item, 1, inventoryManager, finalRevenue);
+            }
+        }
+
+        // ==========================================
+        // CONTEXTUAL SIDE PROMPTS
+        // ==========================================
+        private void UpdateSidePrompts(bool isBoarded)
+        {
+            // If any major UI is open (Tutorial, Settings, Dialogue, Upgrade HUD, news HUD) hide prompts
+            bool isUIActive = (dialoguePanel != null && dialoguePanel.activeSelf) 
+                || (marketingPanel != null && marketingPanel.activeSelf)
+                || (tutorialPanel != null && tutorialPanel.activeSelf)
+                || (settingsPanel != null && settingsPanel.activeSelf)
+                || (riverMarketHUD != null && (riverMarketHUD.IsUpgradeOpen || riverMarketHUD.IsNewsOpen || riverMarketHUD.IsNpcTradeOpen));
+
+            if (isUIActive)
+            {
+                if (leftPromptPanel != null) leftPromptPanel.SetActive(false);
+                if (rightPromptPanel != null) rightPromptPanel.SetActive(false);
+                return;
+            }
+
+            // 1. Left prompt (E interact)
+            var interactor = FindAnyObjectByType<PlayerNpcTradeInteractor>();
+            var boarding = FindAnyObjectByType<BoatBoardingController>();
+
+            bool showLeft = false;
+            string leftText = "";
+
+            if (interactor != null && interactor.CurrentTarget != null)
+            {
+                showLeft = true;
+                leftText = $"[E] Tuong tac:\n{interactor.CurrentTarget.NpcDisplayName}";
+            }
+            else if (boarding != null)
+            {
+                if (isBoarded)
+                {
+                    if (boarding.CanDismountBoat)
+                    {
+                        showLeft = true;
+                        leftText = "[E] Roi ghe\n(Den diem bo)";
+                    }
+                }
+                else
+                {
+                    if (boarding.CanBoardBoat)
+                    {
+                        showLeft = true;
+                        leftText = "[E] Len ghe";
+                    }
+                }
+            }
+
+            if (leftPromptPanel != null)
+            {
+                leftPromptPanel.SetActive(showLeft);
+                if (showLeft && leftPromptText != null)
+                {
+                    leftPromptText.text = leftText;
+                }
+            }
+
+            // 2. Right prompt (B Cây Bẹo - only on boat)
+            bool showRight = isBoarded;
+            if (rightPromptPanel != null)
+            {
+                rightPromptPanel.SetActive(showRight);
+                if (showRight && rightPromptText != null)
+                {
+                    rightPromptText.text = "[B] Lieu dinh\nCay Beo"; // wait, the prompt text says "Dieu chinh", let's make sure it's correct
+                    rightPromptText.text = "[B] Dieu chinh\nCay Beo";
+                }
+            }
+        }
+
+        // ==========================================
+        // HELPERS
+        // ==========================================
+        private void EnsureEventSystem()
+        {
+            if (FindAnyObjectByType<EventSystem>() != null) return;
+            GameObject eventSystemObject = new GameObject("EventSystem", typeof(EventSystem));
+            eventSystemObject.AddComponent<InputSystemUIInputModule>();
+        }
+
         private GameObject CreatePanel(string name, Transform parent, Color color)
         {
             GameObject panel = new GameObject(name, typeof(RectTransform), typeof(Image));
@@ -236,6 +1202,8 @@ namespace ChoNoi.UI
             text.fontSize = fontSize;
             text.alignment = alignment;
             text.color = Color.white;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
             return text;
         }
 
@@ -270,6 +1238,101 @@ namespace ChoNoi.UI
             rectTransform.offsetMin = Vector2.zero;
             rectTransform.offsetMax = Vector2.zero;
             rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        }
+    }
+
+    // ==========================================
+    // DRAG AND DROP / CLICK HANDLERS HELPERS
+    // ==========================================
+
+    public class UIDragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler
+    {
+        public ItemData item;
+        public FullSimulatorUI parentUI;
+
+        private GameObject dragObject;
+        private Canvas canvas;
+
+        public void OnBeginDrag(PointerEventData eventData)
+        {
+            canvas = GetComponentInParent<Canvas>();
+            if (canvas == null) return;
+
+            dragObject = new GameObject("DragIcon", typeof(RectTransform), typeof(Image), typeof(CanvasGroup));
+            if (parentUI != null)
+            {
+                if (parentUI.activeDragObject != null) Destroy(parentUI.activeDragObject);
+                parentUI.activeDragObject = dragObject;
+            }
+            dragObject.transform.SetParent(canvas.transform, false);
+            dragObject.transform.SetAsLastSibling();
+            
+            RectTransform rt = dragObject.GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(90f, 90f);
+            
+            Image img = dragObject.GetComponent<Image>();
+            img.color = new Color(0.88f, 0.71f, 0.34f, 0.85f);
+            
+            CanvasGroup group = dragObject.GetComponent<CanvasGroup>();
+            group.blocksRaycasts = false;
+
+            UpdatePosition(eventData.position);
+        }
+
+        public void OnDrag(PointerEventData eventData)
+        {
+            UpdatePosition(eventData.position);
+        }
+
+        public void OnEndDrag(PointerEventData eventData)
+        {
+            if (dragObject != null) Destroy(dragObject);
+            if (parentUI != null)
+            {
+                if (parentUI.activeDragObject == dragObject)
+                    parentUI.activeDragObject = null;
+                parentUI.HandleItemDropped(item, eventData.position);
+            }
+        }
+
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            if (parentUI != null) parentUI.HandleItemClicked(item);
+        }
+
+        private void UpdatePosition(Vector2 screenPos)
+        {
+            if (dragObject == null || canvas == null) return;
+            Vector2 localPos;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                canvas.transform as RectTransform,
+                screenPos,
+                canvas.worldCamera,
+                out localPos);
+            dragObject.GetComponent<RectTransform>().anchoredPosition = localPos;
+        }
+    }
+
+    public class UIPoleSlotHandler : MonoBehaviour, IDropHandler, IPointerClickHandler
+    {
+        public int slotIndex;
+        public FullSimulatorUI parentUI;
+
+        public void OnDrop(PointerEventData eventData)
+        {
+            var drag = eventData.pointerDrag?.GetComponent<UIDragHandler>();
+            if (drag != null && parentUI != null)
+            {
+                parentUI.HandleItemDroppedOnSlot(drag.item, slotIndex);
+            }
+        }
+
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            if (parentUI != null)
+            {
+                parentUI.HandleSlotClicked(slotIndex);
+            }
         }
     }
 }
