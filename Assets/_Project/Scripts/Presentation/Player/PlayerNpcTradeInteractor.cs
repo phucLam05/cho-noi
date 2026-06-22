@@ -109,7 +109,10 @@ namespace ChoNoi.Presentation.Player
                         bargainingUI.ToggleVisibility(true);
                     break;
                 case InteractionTargetType.Upgrade:
-                    if (hud != null) hud.OpenUpgradePanel();
+                    if (fullUI != null)
+                        fullUI.OpenUpgradeCampDialogue(target);
+                    else if (hud != null)
+                        hud.OpenUpgradePanel();
                     break;
                 case InteractionTargetType.News:
                 case InteractionTargetType.Trade:

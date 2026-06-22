@@ -17,6 +17,14 @@ namespace ChoNoi.Infrastructure
     }
 
     [Serializable]
+    public class CargoSlotSaveData
+    {
+        public int slotIndex;
+        public string itemID;
+        public int amount;
+    }
+
+    [Serializable]
     public class GameSaveData
     {
         public int currentDay;
@@ -27,6 +35,7 @@ namespace ChoNoi.Infrastructure
 
         public float maxWeightCapacity;
         public List<InventoryItemSaveData> inventoryItems = new List<InventoryItemSaveData>();
+        public List<CargoSlotSaveData> cargoSlotsData = new List<CargoSlotSaveData>();
 
         public int storageLevel;
         public bool hasRoof;
@@ -92,6 +101,7 @@ namespace ChoNoi.Infrastructure
             if (inventoryManager != null)
             {
                 data.maxWeightCapacity = inventoryManager.MaxWeightCapacity;
+                // Lưu dữ liệu inventory tổng thể để tương thích ngược
                 foreach (var kvp in inventoryManager.Inventory)
                 {
                     data.inventoryItems.Add(new InventoryItemSaveData
@@ -99,6 +109,21 @@ namespace ChoNoi.Infrastructure
                         itemID = kvp.Key.itemID,
                         amount = kvp.Value
                     });
+                }
+
+                // Lưu dữ liệu vị trí các ô hàng trong lưới
+                var slots = inventoryManager.CargoSlots;
+                for (int i = 0; i < slots.Count; i++)
+                {
+                    if (slots[i] != null && slots[i].item != null && slots[i].amount > 0)
+                    {
+                        data.cargoSlotsData.Add(new CargoSlotSaveData
+                        {
+                            slotIndex = i,
+                            itemID = slots[i].item.itemID,
+                            amount = slots[i].amount
+                        });
+                    }
                 }
             }
 
@@ -175,16 +200,38 @@ namespace ChoNoi.Infrastructure
             if (inventoryManager != null)
             {
                 inventoryManager.LoadCapacity(data.maxWeightCapacity);
-                inventoryManager.ClearInventory();
-                foreach (var invItem in data.inventoryItems)
+                inventoryManager.ClearInventory(); // Reset sạch ô và dict
+
+                if (data.cargoSlotsData != null && data.cargoSlotsData.Count > 0)
                 {
-                    if (itemDict.TryGetValue(invItem.itemID, out ItemData itemData))
+                    // Nạp chính xác vào vị trí từng ô chứa
+                    var slots = inventoryManager.CargoSlots;
+                    foreach (var slotSave in data.cargoSlotsData)
                     {
-                        inventoryManager.SetItemAmount(itemData, invItem.amount);
+                        if (slotSave.slotIndex >= 0 && slotSave.slotIndex < slots.Count)
+                        {
+                            if (itemDict.TryGetValue(slotSave.itemID, out ItemData itemData))
+                            {
+                                slots[slotSave.slotIndex].item = itemData;
+                                slots[slotSave.slotIndex].amount = slotSave.amount;
+                            }
+                        }
                     }
-                    else
+                    inventoryManager.SyncInventoryFromSlots();
+                }
+                else
+                {
+                    // Fallback nạp theo danh sách kiểu cũ nếu file save cũ không chứa dữ liệu ô
+                    foreach (var invItem in data.inventoryItems)
                     {
-                        Debug.LogWarning($"[SaveLoadManager] Item {invItem.itemID} not found in master database.");
+                        if (itemDict.TryGetValue(invItem.itemID, out ItemData itemData))
+                        {
+                            inventoryManager.SetItemAmount(itemData, invItem.amount);
+                        }
+                        else
+                        {
+                            Debug.LogWarning($"[SaveLoadManager] Item {invItem.itemID} not found in master database.");
+                        }
                     }
                 }
             }

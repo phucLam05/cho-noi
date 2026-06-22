@@ -130,12 +130,16 @@ Assets/
 ### 2. Giao diện đối thoại & Mặc cả sỉ kiểu Witcher 3
 - Hộp đối thoại phụ đề nằm ở **dưới cùng chính giữa** với nền đen mờ sang trọng. Tên NPC có màu vàng nổi bật.
 - Danh sách lựa chọn của người chơi nằm ở **phía rìa phải, bên trên phụ đề**, được đánh số thứ tự rõ ràng (`1. `, `2. `) để dễ điều khiển.
-- Khi tương tác với Thương lái sỉ, người chơi được lựa chọn số lượng sỉ trước khi bắt đầu minigame trả giá.
+- **Giá đề xuất mặc định thông minh**: Khi mở bảng ra giá sỉ, thanh trượt mặc định trỏ về giá mở cửa của NPC (`NpcOpeningPrice`) ở lượt đầu tiên và bắt đầu từ mức giá mà người chơi đã đề xuất trước đó (`PlayerProposedPrice`) ở các lượt đôi co tiếp theo.
+- **Cơ chế xác suất mặc cả suy giảm mũ**: NPC đồng ý ngay lập tức nếu đơn giá bán $\le$ giá trần chấp nhận ẩn của họ. Nếu cao hơn, xác suất chấp nhận $P_{accept} = e^{-5 \times Ratio}$ và xác suất bỏ đi $P_{walk\_away} = 1.0 - e^{-3 \times Ratio \times (Turn + 1)}$. Chi tiết công thức toán học xem tại **[bargaining_mechanics.md](file:///e:/university/pru/cho-noi-mien-tay/knowledge-base/task-phase-04-tv1-physics-tuning/bargaining_mechanics.md)**.
+- **Giới hạn 1 giao dịch/ngày**: Mỗi NPC chỉ thực hiện tối đa 1 phiên giao dịch bán sỉ mỗi ngày (thành công hoặc hủy bỏ). Hệ thống khóa tương tác mua bán lại cho đến khi người chơi đi ngủ chuyển sang ngày mới.
 
 ### 3. Kéo thả Cây Bẹo và Đa Tab (Tabbed Cargo UI)
 - Phím `B` mở giao diện quản lý đa năng gồm 2 Tab:
   - **Tab Khoang Thuyền**: Danh sách thống kê toàn bộ hàng hóa đang có trên ghe, khối lượng và giá trị tương đương.
   - **Tab Cây Bẹo**: Giao diện kéo thả nông sản tiếp thị lên sào tre. Có nút [Gỡ] nhanh và hỗ trợ kéo đè vật phẩm mới để thay thế vật phẩm cũ.
+- **Lưới ô hàng cuộn dọc & Căn chỉnh tối ưu**: Các lưới ô chứa hàng hóa tại Tab Khoang Thuyền và Tab Cây Bẹo (kho hàng trên ghe) được bọc bằng `ScrollRect` và `RectMask2D` động để cuộn trơn tru khi nâng cấp tải trọng ghe. Kho hàng trên ghe của Tab Cây Bẹo hiển thị theo lưới 4 cột căn giữa giúp phân bố không gian cân đối, không bị che khuất.
+- **Chặn phím tương tác chồng đè**: Phím `B` tự động bị vô hiệu hóa khi người chơi đang đối thoại hoặc mặc cả với NPC để ngăn chặn lỗi giao diện chồng chéo.
 
 ---
 

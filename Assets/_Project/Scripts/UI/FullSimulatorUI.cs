@@ -22,6 +22,8 @@ namespace ChoNoi.UI
         public BambooPoleManager bambooPoleManager;
         public InventoryManager inventoryManager;
         public RiverMarketHUD riverMarketHUD;
+        public PlayerStats playerStats;
+        public BoatCampManager boatCampManager;
 
         private GameObject canvasObject;
         private GameObject tutorialPanel;
@@ -56,6 +58,9 @@ namespace ChoNoi.UI
         private Button tabButton1;
         private Button tabButton2;
 
+        // Cargo selection
+        private int selectedCargoSlotIndex = -1;
+
         // Dialogue State Machine
         private enum DialogueState
         {
@@ -65,12 +70,54 @@ namespace ChoNoi.UI
             MerchantBargaining,
             VendorGreeting,
             VendorTrading,
-            VendorNews
+            VendorNews,
+            GardenerGreeting,
+            GardenerTrading,
+            UpgradeCampGreeting
         }
         private DialogueState dialogueState = DialogueState.Closed;
         private NpcTradeTarget activeNpc;
         private ItemData selectedBargainItem;
         private int bargainQuantity = 1;
+        private bool justFinishedTrade = false;
+        private bool isSettingUpSlider = false;
+
+        // Trade Quantity Panel
+        private GameObject tradeQuantityPanel;
+        private Text tradeTitleText;
+        private Text tradeItemInfoText;
+        private Slider tradeQtySlider;
+        private InputField tradeQtyInputField;
+        private Text tradeSummaryText;
+        private Button tradeConfirmButton;
+        private Button tradeCancelButton;
+        private Button tradeMaxButton;
+
+        private ItemData currentTradeItem;
+        private bool isBuying;
+        private bool isWholesale;
+        private bool isPriceMode;
+        private int maxTradeQty;
+        private int selectedTradeQty = 1;
+        private int selectedTradePrice = 1000;
+        private int minTradePrice = 500;
+        private int maxTradePrice = 10000;
+
+        // Upgrade & Maintenance Panel (Trại Ghe)
+        private GameObject boatYardPanel;
+        private Text yardTitleText;
+        private Text yardDurabilityText;
+        private Slider yardDurabilitySlider;
+        private Button yardRepairButton;
+        
+        private Text upgradeStorageText;
+        private Text upgradeEngineText;
+        private Text upgradeRoofText;
+        private Text upgradeBambooText;
+        private Button upgradeStorageButton;
+        private Button upgradeEngineButton;
+        private Button upgradeRoofButton;
+        private Button upgradeBambooButton;
 
         // Drag and drop / click-to-place helper state
         private ItemData selectedInventoryItemForPole;
@@ -92,6 +139,16 @@ namespace ChoNoi.UI
                 inventoryManager = FindAnyObjectByType<InventoryManager>();
             if (riverMarketHUD == null)
                 riverMarketHUD = FindAnyObjectByType<RiverMarketHUD>();
+            if (playerStats == null)
+                playerStats = FindAnyObjectByType<PlayerStats>();
+            if (boatCampManager == null)
+                boatCampManager = FindAnyObjectByType<BoatCampManager>();
+
+            var timeManager = FindAnyObjectByType<TimeManager>();
+            if (timeManager != null)
+            {
+                timeManager.OnDayChanged += HandleDayChanged;
+            }
 
             BuildExtraUI();
         }
@@ -102,10 +159,10 @@ namespace ChoNoi.UI
             var boarding = FindAnyObjectByType<BoatBoardingController>();
             bool isBoarded = boarding != null && boarding.IsBoarded;
 
-            // B key to toggle marketing panel, only available when boarded on the boat
+            // B key to toggle marketing panel, only available when boarded on the boat and dialogue is closed
             if (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.bKey.wasPressedThisFrame)
             {
-                if (isBoarded)
+                if (isBoarded && !IsDialogueOpen)
                 {
                     ToggleMarketing();
                 }
@@ -203,15 +260,13 @@ namespace ChoNoi.UI
             CreateText("CargoHeader", khoangThuyenTabContent.transform, 22, TextAnchor.MiddleCenter).text = "DANH SACH NONG SAN TRONG KHOANG GHE";
             Stretch(khoangThuyenTabContent.transform.Find("CargoHeader").GetComponent<RectTransform>(), new Vector2(0.05f, 0.88f), new Vector2(0.95f, 0.96f));
 
-            khoangThuyenListParent = new GameObject("CargoListGrid", typeof(RectTransform), typeof(VerticalLayoutGroup));
-            khoangThuyenListParent.transform.SetParent(khoangThuyenTabContent.transform, false);
-            Stretch(khoangThuyenListParent.GetComponent<RectTransform>(), new Vector2(0.05f, 0.05f), new Vector2(0.95f, 0.85f));
-            var cargoLayout = khoangThuyenListParent.GetComponent<VerticalLayoutGroup>();
-            cargoLayout.spacing = 8f;
-            cargoLayout.childControlWidth = true;
-            cargoLayout.childControlHeight = false;
-            cargoLayout.childForceExpandWidth = true;
-            cargoLayout.childForceExpandHeight = false;
+            khoangThuyenListParent = new GameObject("CargoListGrid", typeof(RectTransform), typeof(GridLayoutGroup));
+            var cargoLayout = khoangThuyenListParent.GetComponent<GridLayoutGroup>();
+            cargoLayout.cellSize = new Vector2(110f, 110f);
+            cargoLayout.spacing = new Vector2(10f, 10f);
+            cargoLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            cargoLayout.constraintCount = 4;
+            MakeScrollable(khoangThuyenTabContent, khoangThuyenListParent, new Vector2(0.05f, 0.05f), new Vector2(0.95f, 0.85f));
 
             // 2. Cay Beo Tab Content
             cayBeoTabContent = new GameObject("CayBeoTabContent", typeof(RectTransform));
@@ -224,15 +279,14 @@ namespace ChoNoi.UI
             CreateText("InvHeader", invPanel.transform, 22, TextAnchor.MiddleCenter).text = "KHO HANG TREN GHE (Keo tha hoac Click chon)";
             Stretch(invPanel.transform.Find("InvHeader").GetComponent<RectTransform>(), new Vector2(0.05f, 0.88f), new Vector2(0.95f, 0.96f));
             
-            inventoryGridParent = new GameObject("InventoryGrid", typeof(RectTransform), typeof(VerticalLayoutGroup));
-            inventoryGridParent.transform.SetParent(invPanel.transform, false);
-            Stretch(inventoryGridParent.GetComponent<RectTransform>(), new Vector2(0.05f, 0.05f), new Vector2(0.95f, 0.85f));
-            var invLayout = inventoryGridParent.GetComponent<VerticalLayoutGroup>();
-            invLayout.spacing = 8f;
-            invLayout.childControlWidth = true;
-            invLayout.childControlHeight = false;
-            invLayout.childForceExpandWidth = true;
-            invLayout.childForceExpandHeight = false;
+            inventoryGridParent = new GameObject("InventoryGrid", typeof(RectTransform), typeof(GridLayoutGroup));
+            var invLayout = inventoryGridParent.GetComponent<GridLayoutGroup>();
+            invLayout.cellSize = new Vector2(100f, 100f);
+            invLayout.spacing = new Vector2(8f, 8f);
+            invLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            invLayout.constraintCount = 4;
+            invLayout.childAlignment = TextAnchor.UpperCenter;
+            MakeScrollable(invPanel, inventoryGridParent, new Vector2(0.05f, 0.05f), new Vector2(0.95f, 0.85f));
 
             // Right panel for Cây Bẹo Slots
             GameObject polePanel = CreatePanel("PolePanel", cayBeoTabContent.transform, new Color(0.18f, 0.15f, 0.10f, 0.9f));
@@ -281,9 +335,10 @@ namespace ChoNoi.UI
             // Dialogue choices panel (positioned on the right side and above the dialogue box)
             choicePanel = new GameObject("ChoicePanel", typeof(RectTransform), typeof(VerticalLayoutGroup));
             choicePanel.transform.SetParent(canvasObject.transform, false);
-            Stretch(choicePanel.GetComponent<RectTransform>(), new Vector2(0.60f, 0.25f), new Vector2(0.95f, 0.70f));
+            Stretch(choicePanel.GetComponent<RectTransform>(), new Vector2(0.60f, 0.24f), new Vector2(0.95f, 0.85f));
             var choiceLayout = choicePanel.GetComponent<VerticalLayoutGroup>();
             choiceLayout.spacing = 10f;
+            choiceLayout.childAlignment = TextAnchor.LowerCenter;
             choiceLayout.childControlWidth = true;
             choiceLayout.childControlHeight = false;
             choiceLayout.childForceExpandWidth = true;
@@ -291,6 +346,10 @@ namespace ChoNoi.UI
             choicePanel.SetActive(false);
 
             dialoguePanel.SetActive(false);
+
+            // Bổ sung các Panel giao dịch phụ
+            BuildTradeQuantityPanel(canvasObject.transform);
+            BuildBoatYardPanel(canvasObject.transform);
         }
 
         private void ToggleTutorial() => tutorialPanel.SetActive(!tutorialPanel.activeSelf);
@@ -373,6 +432,18 @@ namespace ChoNoi.UI
             if (khoangThuyenTabContent != null) khoangThuyenTabContent.SetActive(activeCargoTab == 0);
             if (cayBeoTabContent != null) cayBeoTabContent.SetActive(activeCargoTab == 1);
 
+            if (marketingText != null)
+            {
+                if (activeCargoTab == 0)
+                {
+                    marketingText.text = "Click chọn 2 ô để hoán đổi vị trí nông sản trong khoang chứa.";
+                }
+                else
+                {
+                    marketingText.text = "Kéo thả hàng từ Kho sang Cây Bẹo để tiếp thị quảng cáo. Click chữ Gỡ để tháo xuống.";
+                }
+            }
+
             // Clear previously created visual items
             foreach (var elem in createdUIElements)
             {
@@ -380,71 +451,101 @@ namespace ChoNoi.UI
             }
             createdUIElements.Clear();
 
+            int maxSlots = inventoryManager.MaxSlots;
+            var slots = inventoryManager.CargoSlots;
+
             if (activeCargoTab == 0)
             {
-                // Tab 1: Khoang Thuyen
-                foreach (var kvp in inventoryManager.Inventory)
+                // Tab 1: Khoang Thuyen - Grid of Slots (4 columns)
+                for (int i = 0; i < maxSlots; i++)
                 {
-                    ItemData item = kvp.Key;
-                    int count = kvp.Value;
-                    if (count <= 0) continue;
+                    int index = i;
+                    bool hasItem = index < slots.Count && slots[index] != null && slots[index].item != null && slots[index].amount > 0;
 
-                    GameObject slot = CreatePanel($"CargoItem_{item.itemID}", khoangThuyenListParent.transform, new Color(0.15f, 0.20f, 0.25f, 1f));
-                    createdUIElements.Add(slot);
-                    var le = slot.AddComponent<LayoutElement>();
-                    le.preferredHeight = 65f;
+                    GameObject slotObj = CreatePanel($"CargoSlot_{index}", khoangThuyenListParent.transform, 
+                        hasItem ? new Color(0.18f, 0.25f, 0.22f, 1f) : new Color(0.08f, 0.08f, 0.08f, 0.7f));
+                    createdUIElements.Add(slotObj);
 
-                    Text nameText = CreateText("NameText", slot.transform, 20, TextAnchor.MiddleLeft);
-                    nameText.text = $" <b>{item.itemName}</b> (x{count})";
-                    Stretch(nameText.rectTransform, new Vector2(0.02f, 0f), new Vector2(0.40f, 1f));
+                    var slotHandler = slotObj.AddComponent<UICargoGridSlotHandler>();
+                    slotHandler.slotIndex = index;
+                    slotHandler.parentUI = this;
+                    slotHandler.item = hasItem ? slots[index].item : null;
 
-                    Text weightText = CreateText("WeightText", slot.transform, 18, TextAnchor.MiddleLeft);
-                    weightText.text = $"Cân nặng: {item.weight * count:0.0}kg ({item.weight:0.0}kg/sp)";
-                    Stretch(weightText.rectTransform, new Vector2(0.42f, 0f), new Vector2(0.68f, 1f));
+                    if (selectedCargoSlotIndex == index)
+                    {
+                        slotObj.GetComponent<Image>().color = new Color(0.88f, 0.71f, 0.34f, 1f);
+                    }
 
-                    Text priceText = CreateText("PriceText", slot.transform, 18, TextAnchor.MiddleLeft);
-                    int sellPrice = GetSalePriceOnVendor(item);
-                    priceText.text = $"Giá sỉ: {item.basePrice:N0}đ\nGiá bán lẻ: {sellPrice:N0}đ";
-                    Stretch(priceText.rectTransform, new Vector2(0.70f, 0f), new Vector2(0.98f, 1f));
+                    Text text = CreateText("Label", slotObj.transform, 16, TextAnchor.MiddleCenter);
+                    if (hasItem)
+                    {
+                        var slotItem = slots[index].item;
+                        text.text = $"<b>{slotItem.itemName}</b>\nx{slots[index].amount}\n({slotItem.weight * slots[index].amount:0.0} kg)";
+                        text.color = Color.white;
+
+                        // Hỗ trợ kéo thả
+                        var drag = slotObj.AddComponent<UIDragHandler>();
+                        drag.item = slotItem;
+                        drag.parentUI = this;
+                        drag.fromCargoSlotIndex = index;
+                    }
+                    else
+                    {
+                        text.text = $"[Ô {index + 1}]\nTrống";
+                        text.color = new Color(1f, 1f, 1f, 0.35f);
+                    }
+                    Stretch(text.rectTransform, Vector2.zero, Vector2.one);
                 }
             }
             else
             {
                 // Tab 2: Cay Beo
-                // 1. Build Inventory Grid (Left)
-                foreach (var kvp in inventoryManager.Inventory)
+                // 1. Build Inventory Grid (Left) - Now uses 3-column Cargo Grid slots!
+                for (int i = 0; i < maxSlots; i++)
                 {
-                    ItemData item = kvp.Key;
-                    int count = kvp.Value;
-                    if (count <= 0) continue;
+                    int index = i;
+                    bool hasItem = index < slots.Count && slots[index] != null && slots[index].item != null && slots[index].amount > 0;
 
-                    GameObject slot = CreatePanel($"InvItem_{item.itemID}", inventoryGridParent.transform, new Color(0.20f, 0.26f, 0.22f, 1f));
-                    createdUIElements.Add(slot);
-                    var le = slot.AddComponent<LayoutElement>();
-                    le.preferredHeight = 60f;
+                    GameObject slotObj = CreatePanel($"CargoSlot_{index}", inventoryGridParent.transform, 
+                        hasItem ? new Color(0.18f, 0.25f, 0.22f, 1f) : new Color(0.08f, 0.08f, 0.08f, 0.7f));
+                    createdUIElements.Add(slotObj);
 
-                    Text label = CreateText("Label", slot.transform, 20, TextAnchor.MiddleLeft);
-                    label.text = $" {item.itemName} (x{count}) - {item.weight:0.0}kg";
-                    Stretch(label.rectTransform, new Vector2(0.05f, 0f), new Vector2(0.95f, 1f));
+                    var slotHandler = slotObj.AddComponent<UICargoGridSlotHandler>();
+                    slotHandler.slotIndex = index;
+                    slotHandler.parentUI = this;
+                    slotHandler.item = hasItem ? slots[index].item : null;
 
-                    // Highlighting if selected
-                    if (selectedInventoryItemForPole == item)
+                    if (selectedCargoSlotIndex == index)
                     {
-                        slot.GetComponent<Image>().color = new Color(0.88f, 0.71f, 0.34f, 1f);
-                        label.color = Color.black;
+                        slotObj.GetComponent<Image>().color = new Color(0.88f, 0.71f, 0.34f, 1f);
                     }
 
-                    // Add drag handler & click handlers
-                    var drag = slot.AddComponent<UIDragHandler>();
-                    drag.item = item;
-                    drag.parentUI = this;
+                    Text text = CreateText("Label", slotObj.transform, 14, TextAnchor.MiddleCenter);
+                    if (hasItem)
+                    {
+                        var slotItem = slots[index].item;
+                        text.text = $"<b>{slotItem.itemName}</b>\nx{slots[index].amount}";
+                        text.color = Color.white;
+
+                        // Hỗ trợ kéo thả lên Cây Bẹo
+                        var drag = slotObj.AddComponent<UIDragHandler>();
+                        drag.item = slotItem;
+                        drag.parentUI = this;
+                        drag.fromCargoSlotIndex = index;
+                    }
+                    else
+                    {
+                        text.text = $"Ô {index + 1}\nTrống";
+                        text.color = new Color(1f, 1f, 1f, 0.35f);
+                    }
+                    Stretch(text.rectTransform, Vector2.zero, Vector2.one);
                 }
 
                 // 2. Build Pole Slots (Right)
-                int maxSlots = bambooPoleManager.MaxDisplayedItems;
+                int maxPoleSlots = bambooPoleManager.MaxDisplayedItems;
                 List<ItemData> displayed = bambooPoleManager.DisplayedItems;
 
-                for (int i = 0; i < maxSlots; i++)
+                for (int i = 0; i < maxPoleSlots; i++)
                 {
                     int index = i;
                     bool isOccupied = index < displayed.Count;
@@ -572,6 +673,7 @@ namespace ChoNoi.UI
             activeNpc = npc;
             dialogueState = DialogueState.MerchantGreeting;
             selectedBargainItem = null;
+            justFinishedTrade = false;
 
             dialoguePanel.SetActive(true);
             Cursor.visible = true;
@@ -583,7 +685,26 @@ namespace ChoNoi.UI
         public void OpenTradeDialogue(NpcTradeTarget npc)
         {
             activeNpc = npc;
-            dialogueState = DialogueState.VendorGreeting;
+            if (npc.name.Contains("FoodVendor") || npc.NpcDisplayName.Contains("Vendor"))
+            {
+                dialogueState = DialogueState.VendorGreeting;
+            }
+            else
+            {
+                dialogueState = DialogueState.GardenerGreeting;
+            }
+
+            dialoguePanel.SetActive(true);
+            Cursor.visible = true;
+            Cursor.lockState = CursorLockMode.None;
+
+            UpdateDialogueUI();
+        }
+
+        public void OpenUpgradeCampDialogue(NpcTradeTarget npc)
+        {
+            activeNpc = npc;
+            dialogueState = DialogueState.UpgradeCampGreeting;
 
             dialoguePanel.SetActive(true);
             Cursor.visible = true;
@@ -626,11 +747,27 @@ namespace ChoNoi.UI
             Sprite npcAvatarSprite = GetNpcAvatar(activeNpc);
             Sprite playerAvatarSprite = GetPlayerAvatar();
 
-            npcAvatar.sprite = npcAvatarSprite;
-            npcAvatar.color = npcAvatarSprite != null ? Color.white : new Color(1f, 1f, 1f, 0.15f);
+            if (npcAvatarSprite != null)
+            {
+                npcAvatar.gameObject.SetActive(true);
+                npcAvatar.sprite = npcAvatarSprite;
+                npcAvatar.color = Color.white;
+            }
+            else
+            {
+                npcAvatar.gameObject.SetActive(false);
+            }
 
-            playerAvatar.sprite = playerAvatarSprite;
-            playerAvatar.color = playerAvatarSprite != null ? Color.white : new Color(1f, 1f, 1f, 0.15f);
+            if (playerAvatarSprite != null)
+            {
+                playerAvatar.gameObject.SetActive(true);
+                playerAvatar.sprite = playerAvatarSprite;
+                playerAvatar.color = Color.white;
+            }
+            else
+            {
+                playerAvatar.gameObject.SetActive(false);
+            }
 
             // Fetch bargaining system
             BargainingSystem bargainingSystem = FindAnyObjectByType<BargainingSystem>();
@@ -638,116 +775,102 @@ namespace ChoNoi.UI
             switch (dialogueState)
             {
                 case DialogueState.MerchantGreeting:
-                    npcNameText.text = activeNpc.NpcDisplayName;
-                    dialogueText.text = "Chào ngày mới! Ghe chú em hôm nay mang gì đến để bán sỉ thế?";
-                    
-                    // Highlight NPC avatar, dim player
-                    npcAvatar.color = Color.white;
-                    playerAvatar.color = new Color(1f, 1f, 1f, 0.4f);
-
-                    int mIndex = 1;
-                    // Generate choices of items in inventory
-                    if (inventoryManager != null)
+                    if (bargainingSystem == null)
                     {
-                        foreach (var kvp in inventoryManager.Inventory)
-                        {
-                            ItemData item = kvp.Key;
-                            int count = kvp.Value;
-                            if (count <= 0) continue;
+                        CloseAllDialogueAndPanels();
+                        break;
+                    }
 
-                            CreateChoiceButton($"{mIndex++}. Bán sỉ {item.itemName} (Đang có {count})", () =>
+                    if (activeNpc != null && activeNpc.HasTraded)
+                    {
+                        npcNameText.text = activeNpc.NpcDisplayName;
+                        if (justFinishedTrade)
+                        {
+                            dialogueText.text = bargainingSystem.CurrentMessage;
+                        }
+                        else
+                        {
+                            dialogueText.text = "Tôm cá trái cây mua đủ rồi, hẹn chú em bữa khác nghen!";
+                        }
+                        CreateChoiceButton("1. Tạm biệt", CloseDialogueAndReleasePlayer);
+                        break;
+                    }
+
+                    if (!bargainingSystem.HasActiveSession)
+                    {
+                        var items = new List<KeyValuePair<ItemData, int>>();
+                        if (inventoryManager != null)
+                        {
+                            foreach (var kvp in inventoryManager.Inventory)
                             {
-                                selectedBargainItem = item;
-                                bargainQuantity = 1; // Default starting quantity
-                                if (bargainingSystem != null)
-                                {
-                                    bargainingSystem.SelectInventoryItem(item);
-                                }
-                                dialogueState = DialogueState.MerchantSelectQuantity;
-                                UpdateDialogueUI();
-                            });
+                                if (kvp.Value > 0) items.Add(kvp);
+                            }
+                        }
+
+                        if (items.Count == 0)
+                        {
+                            npcNameText.text = activeNpc.NpcDisplayName;
+                            if (bargainingSystem.SelectedItem == null && bargainingSystem.CurrentAskPrice == 0)
+                            {
+                                dialogueText.text = "Chào ngày mới chú em! Hôm nay ghe chú em trống trơn hà, có hàng gì đâu mà bán sỉ!";
+                            }
+                            else
+                            {
+                                dialogueText.text = bargainingSystem.CurrentMessage;
+                            }
+                            CreateChoiceButton("1. Tạm biệt", CloseDialogueAndReleasePlayer);
+                            break;
+                        }
+                        else
+                        {
+                            int randIdx = UnityEngine.Random.Range(0, items.Count);
+                            ItemData item = items[randIdx].Key;
+                            int availableCount = items[randIdx].Value;
+
+                            int quantity = 1;
+                            if (activeNpc.name.Contains("Large") || activeNpc.NpcDisplayName.Contains("Large") || activeNpc.NpcDisplayName.Contains("Merchant"))
+                            {
+                                quantity = UnityEngine.Random.Range(5, Mathf.Min(20, availableCount) + 1);
+                            }
+                            else
+                            {
+                                quantity = UnityEngine.Random.Range(1, Mathf.Min(5, availableCount) + 1);
+                            }
+
+                            bargainingSystem.StartBargainingSession(GetMerchantProfile(activeNpc), item, quantity);
                         }
                     }
 
-                    CreateChoiceButton($"{mIndex++}. Tạm biệt", CloseDialogueAndReleasePlayer);
+                    npcNameText.text = activeNpc.NpcDisplayName;
+                    dialogueText.text = bargainingSystem.CurrentMessage;
+
+                    npcAvatar.gameObject.SetActive(true);
+                    npcAvatar.color = Color.white;
+
+                    if (bargainingSystem.HasActiveSession)
+                    {
+                        CreateChoiceButton("1. Đưa ra đơn giá bán (Chém giá)", () =>
+                        {
+                            OpenTradeQuantityPanel(bargainingSystem.SelectedItem, buy: false, wholesale: true, priceMode: true);
+                        });
+                        CreateChoiceButton("2. Không bán nữa", () =>
+                        {
+                            bargainingSystem.RejectDeal();
+                            if (activeNpc != null) activeNpc.HasTraded = true;
+                            justFinishedTrade = true;
+                            dialogueState = DialogueState.MerchantGreeting;
+                            UpdateDialogueUI();
+                        });
+                    }
+                    else
+                    {
+                        CreateChoiceButton("1. Tạm biệt", CloseDialogueAndReleasePlayer);
+                    }
                     break;
 
                 case DialogueState.MerchantSelectQuantity:
-                    if (selectedBargainItem == null)
-                    {
-                        dialogueState = DialogueState.MerchantGreeting;
-                        UpdateDialogueUI();
-                        return;
-                    }
-
-                    int totalAvailable = inventoryManager != null && inventoryManager.Inventory.TryGetValue(selectedBargainItem, out int amt) ? amt : 0;
-                    npcNameText.text = activeNpc.NpcDisplayName;
-                    dialogueText.text = $"Bạn muốn bán sỉ bao nhiêu quả {selectedBargainItem.itemName}? (Có {totalAvailable} quả trên ghe).";
-
-                    npcAvatar.color = Color.white;
-                    playerAvatar.color = new Color(1f, 1f, 1f, 0.4f);
-
-                    CreateChoiceButton($"Đang chọn: {bargainQuantity} quả", () => {});
-
-                    int qIndex = 1;
-                    if (bargainQuantity < totalAvailable)
-                    {
-                        CreateChoiceButton($"{qIndex++}. Tăng số lượng (+1)", () =>
-                        {
-                            bargainQuantity = Mathf.Min(bargainQuantity + 1, totalAvailable);
-                            UpdateDialogueUI();
-                        });
-                        if (totalAvailable >= 5 && bargainQuantity + 5 <= totalAvailable)
-                        {
-                            CreateChoiceButton($"{qIndex++}. Tăng số lượng (+5)", () =>
-                            {
-                                bargainQuantity = Mathf.Min(bargainQuantity + 5, totalAvailable);
-                                UpdateDialogueUI();
-                            });
-                        }
-                    }
-
-                    if (bargainQuantity > 1)
-                    {
-                        CreateChoiceButton($"{qIndex++}. Giảm số lượng (-1)", () =>
-                        {
-                            bargainQuantity = Mathf.Max(bargainQuantity - 1, 1);
-                            UpdateDialogueUI();
-                        });
-                        if (bargainQuantity - 5 >= 1)
-                        {
-                            CreateChoiceButton($"{qIndex++}. Giảm số lượng (-5)", () =>
-                            {
-                                bargainQuantity = Mathf.Max(bargainQuantity - 5, 1);
-                                UpdateDialogueUI();
-                            });
-                        }
-                    }
-
-                    if (totalAvailable > 1 && bargainQuantity != totalAvailable)
-                    {
-                        CreateChoiceButton($"{qIndex++}. Bán tất cả ({totalAvailable} quả)", () =>
-                        {
-                            bargainQuantity = totalAvailable;
-                            UpdateDialogueUI();
-                        });
-                    }
-
-                    CreateChoiceButton($"{qIndex++}. Bắt đầu mặc cả {bargainQuantity} quả", () =>
-                    {
-                        if (bargainingSystem != null)
-                        {
-                            bargainingSystem.StartSession(GetMerchantProfile(activeNpc), bargainQuantity);
-                        }
-                        dialogueState = DialogueState.MerchantBargaining;
-                        UpdateDialogueUI();
-                    });
-
-                    CreateChoiceButton($"{qIndex++}. Quay lại", () =>
-                    {
-                        dialogueState = DialogueState.MerchantGreeting;
-                        UpdateDialogueUI();
-                    });
+                    dialogueState = DialogueState.MerchantGreeting;
+                    UpdateDialogueUI();
                     break;
 
                 case DialogueState.MerchantBargaining:
@@ -761,153 +884,183 @@ namespace ChoNoi.UI
                     npcNameText.text = activeNpc.NpcDisplayName;
                     dialogueText.text = bargainingSystem.CurrentMessage;
 
-                    // Highlight NPC or player based on latest action
+                    npcAvatar.gameObject.SetActive(true);
                     npcAvatar.color = Color.white;
-                    playerAvatar.color = new Color(1f, 1f, 1f, 0.4f);
 
                     int bIndex = 1;
-                    CreateChoiceButton($"{bIndex++}. Nói ngọt Đòi Tăng Giá (+{bargainingSystem.EconomyConfig.OfferStep:N0} VNĐ)", () =>
+                    if (bargainingSystem.NpcWalkedAway)
                     {
-                        // Player action -> Highlight player
-                        playerAvatar.color = Color.white;
-                        npcAvatar.color = new Color(1f, 1f, 1f, 0.4f);
-
-                        bargainingSystem.AdjustOffer(1);
-                        UpdateDialogueUI();
-                    });
-
-                    CreateChoiceButton($"{bIndex++}. Tôn hàng Giảm Giá Đòi (-{bargainingSystem.EconomyConfig.OfferStep:N0} VNĐ)", () =>
-                    {
-                        playerAvatar.color = Color.white;
-                        npcAvatar.color = new Color(1f, 1f, 1f, 0.4f);
-
-                        bargainingSystem.AdjustOffer(-1);
-                        UpdateDialogueUI();
-                    });
-
-                    CreateChoiceButton($"{bIndex++}. Chốt kèo! (Bán ngay {bargainingSystem.BargainQuantity} quả)", () =>
-                    {
-                        if (bargainingSystem.TryAcceptDeal())
+                        CreateChoiceButton($"{bIndex++}. Kêu khách quay lại và chấp nhận giá {bargainingSystem.NpcLastOfferedPrice:N0} VNĐ/quả", () =>
                         {
-                            // Deal accepted successfully
+                            bargainingSystem.AcceptNpcLastOffer();
+                            if (activeNpc != null) activeNpc.HasTraded = true;
+                            justFinishedTrade = true;
                             dialogueState = DialogueState.MerchantGreeting;
-                        }
-                        UpdateDialogueUI();
-                    });
-
-                    CreateChoiceButton($"{bIndex++}. Không bán nữa", () =>
+                            UpdateDialogueUI();
+                        });
+                        CreateChoiceButton($"{bIndex++}. Để khách đi", () =>
+                        {
+                            bargainingSystem.RejectDeal();
+                            if (activeNpc != null) activeNpc.HasTraded = true;
+                            justFinishedTrade = true;
+                            dialogueState = DialogueState.MerchantGreeting;
+                            UpdateDialogueUI();
+                        });
+                    }
+                    else
                     {
-                        bargainingSystem.RejectDeal();
-                        dialogueState = DialogueState.MerchantGreeting;
-                        UpdateDialogueUI();
-                    });
+                        CreateChoiceButton($"{bIndex++}. Chốt kèo bán luôn với giá {bargainingSystem.NpcLastOfferedPrice:N0} VNĐ/quả", () =>
+                        {
+                            bargainingSystem.AcceptNpcLastOffer();
+                            if (activeNpc != null) activeNpc.HasTraded = true;
+                            justFinishedTrade = true;
+                            dialogueState = DialogueState.MerchantGreeting;
+                            UpdateDialogueUI();
+                        });
+                        CreateChoiceButton($"{bIndex++}. Thương lượng đơn giá mới (Đôi co tiếp)", () =>
+                        {
+                            OpenTradeQuantityPanel(bargainingSystem.SelectedItem, buy: false, wholesale: true, priceMode: true);
+                        });
+                        CreateChoiceButton($"{bIndex++}. Không bán nữa", () =>
+                        {
+                            bargainingSystem.RejectDeal();
+                            if (activeNpc != null) activeNpc.HasTraded = true;
+                            justFinishedTrade = true;
+                            dialogueState = DialogueState.MerchantGreeting;
+                            UpdateDialogueUI();
+                        });
+                    }
                     break;
 
                 case DialogueState.VendorGreeting:
                     npcNameText.text = activeNpc.NpcDisplayName;
-                    dialogueText.text = "Bun rieu ca phe nong hoi day! Co ca sua ghe luon, chu em dung gi nao?";
+                    dialogueText.text = "Tô bún riêu cua đồng thơm phức đây! Dừng chân ăn uống nghỉ ngơi chút không chú em?";
 
                     npcAvatar.color = Color.white;
                     playerAvatar.color = new Color(1f, 1f, 1f, 0.4f);
 
                     int vIndex = 1;
-                    CreateChoiceButton($"{vIndex++}. An to bun nuoc leo (Hoi the luc - 8,000 VNĐ)", () =>
+                    CreateChoiceButton($"{vIndex++}. Ăn tô bún nước lèo (Hồi thể lực - 8,000 VNĐ)", () =>
                     {
                         RestoreStaminaOnVendor();
                         UpdateDialogueUI();
                     });
 
-                    int repairCost = GetRepairCostOnVendor();
-                    CreateChoiceButton($"{vIndex++}. Sua ghe xom nuoc (Hoi do ben - {repairCost:N0} VNĐ)", () =>
-                    {
-                        RepairBoatOnVendor();
-                        UpdateDialogueUI();
-                    });
-
-                    CreateChoiceButton($"{vIndex++}. Giao thuong nong san", () =>
-                    {
-                        dialogueState = DialogueState.VendorTrading;
-                        UpdateDialogueUI();
-                    });
-
-                    CreateChoiceButton($"{vIndex++}. Hoi tham tin tuc thi truong", () =>
+                    CreateChoiceButton($"{vIndex++}. Hỏi thăm tin tức thị trường", () =>
                     {
                         dialogueState = DialogueState.VendorNews;
                         UpdateDialogueUI();
                     });
 
-                    CreateChoiceButton($"{vIndex++}. Nghi ngoi den sang (Ngu)", () =>
+                    CreateChoiceButton($"{vIndex++}. Nghỉ ngơi đến sáng (Ngủ)", () =>
                     {
                         SleepOnVendor();
                     });
 
-                    CreateChoiceButton($"{vIndex++}. Tam biet", CloseDialogueAndReleasePlayer);
+                    CreateChoiceButton($"{vIndex++}. Tạm biệt", CloseDialogueAndReleasePlayer);
                     break;
 
                 case DialogueState.VendorTrading:
-                    npcNameText.text = activeNpc.NpcDisplayName;
-                    dialogueText.text = "Giao dich cac mat hang nong san le o day. Chu em muon mua hay ban?";
-
-                    npcAvatar.color = Color.white;
-                    playerAvatar.color = new Color(1f, 1f, 1f, 0.4f);
-
-                    int vtIndex = 1;
-                    // List market items configured on HUD
-                    if (riverMarketHUD != null)
-                    {
-                        // Retrieve items lists from HUD
-                        var items = GetMarketItemsList();
-                        foreach (var item in items)
-                        {
-                            int buyPrice = item.basePrice;
-                            int sellPrice = GetSalePriceOnVendor(item);
-                            int owned = inventoryManager != null && inventoryManager.Inventory.TryGetValue(item, out int count) ? count : 0;
-
-                            // Option to Buy
-                            CreateChoiceButton($"{vtIndex++}. Mua 1 {item.itemName} (-{buyPrice:N0} VNĐ) [Dang co {owned}]", () =>
-                            {
-                                BuyItemOnVendor(item);
-                                UpdateDialogueUI();
-                            });
-
-                            // Option to Sell (only if owned > 0)
-                            if (owned > 0)
-                            {
-                                CreateChoiceButton($"{vtIndex++}. Ban 1 {item.itemName} (+{sellPrice:N0} VNĐ)", () =>
-                                {
-                                    SellItemOnVendor(item);
-                                    UpdateDialogueUI();
-                                });
-                            }
-                        }
-                    }
-
-                    CreateChoiceButton($"{vtIndex++}. Quay lai", () =>
-                    {
-                        dialogueState = DialogueState.VendorGreeting;
-                        UpdateDialogueUI();
-                    });
+                    // Đi theo lối GardenerTrading nên không dùng VendorTrading nữa
+                    dialogueState = DialogueState.GardenerTrading;
+                    UpdateDialogueUI();
                     break;
 
                 case DialogueState.VendorNews:
                     npcNameText.text = activeNpc.NpcDisplayName;
                     
-                    string rumor = "Hien tai chua co tin tuc nong nao duoc chia se.";
+                    string rumor = "Hiện tại chưa có tin đồn thị trường nào mới.";
                     var newsController = FindAnyObjectByType<MarketNewsController>();
                     if (newsController != null && newsController.CurrentNews != null)
                     {
-                        rumor = $"[TIN DON]: {newsController.CurrentNews.headline}\n\n\"{newsController.CurrentNews.marketRumor}\"";
+                        rumor = $"[TIN ĐỒN]: {newsController.CurrentNews.headline}\n\n\"{newsController.CurrentNews.marketRumor}\"";
                     }
                     dialogueText.text = rumor;
 
                     npcAvatar.color = Color.white;
                     playerAvatar.color = new Color(1f, 1f, 1f, 0.4f);
 
-                    CreateChoiceButton("1. Cam on thong tin!", () =>
+                    CreateChoiceButton("1. Cảm ơn thông tin!", () =>
                     {
-                        dialogueState = DialogueState.VendorGreeting;
+                        // Quay lại greeting tương ứng
+                        if (activeNpc.name.Contains("FoodVendor") || activeNpc.NpcDisplayName.Contains("Vendor"))
+                        {
+                            dialogueState = DialogueState.VendorGreeting;
+                        }
+                        else
+                        {
+                            dialogueState = DialogueState.GardenerGreeting;
+                        }
                         UpdateDialogueUI();
                     });
+                    break;
+
+                case DialogueState.GardenerGreeting:
+                    npcNameText.text = activeNpc.NpcDisplayName;
+                    dialogueText.text = "Nhà vườn tụi tui mới bẻ trái cây ngoài vựa vô tươi rói nè chú em. Mua lẻ giá gốc đi bán sỉ lại nghen!";
+
+                    npcAvatar.color = Color.white;
+                    playerAvatar.color = new Color(1f, 1f, 1f, 0.4f);
+
+                    int gIndex = 1;
+                    CreateChoiceButton($"{gIndex++}. Thu mua nông sản giá gốc (Mua lẻ)", () =>
+                    {
+                        dialogueState = DialogueState.GardenerTrading;
+                        UpdateDialogueUI();
+                    });
+
+                    CreateChoiceButton($"{gIndex++}. Hỏi thăm tin tức mùa vụ", () =>
+                    {
+                        dialogueState = DialogueState.VendorNews;
+                        UpdateDialogueUI();
+                    });
+
+                    CreateChoiceButton($"{gIndex++}. Tạm biệt", CloseDialogueAndReleasePlayer);
+                    break;
+
+                case DialogueState.GardenerTrading:
+                    npcNameText.text = activeNpc.NpcDisplayName;
+                    dialogueText.text = "Tôi sẵn lòng chia lại các mặt hàng nông sản giá gốc này cho chú em:";
+
+                    npcAvatar.color = Color.white;
+                    playerAvatar.color = new Color(1f, 1f, 1f, 0.4f);
+
+                    int gtIndex = 1;
+                    var marketItemsList = GetMarketItemsList();
+                    if (marketItemsList != null)
+                    {
+                        foreach (var item in marketItemsList)
+                        {
+                            int buyPrice = item.basePrice;
+                            int owned = inventoryManager != null && inventoryManager.Inventory.TryGetValue(item, out int count) ? count : 0;
+
+                            CreateChoiceButton($"{gtIndex++}. Thu mua {item.itemName} (Giá gốc: {buyPrice:N0} VNĐ) [Đang có {owned}]", () =>
+                            {
+                                OpenTradeQuantityPanel(item, buy: true, wholesale: false);
+                            });
+                        }
+                    }
+
+                    CreateChoiceButton($"{gtIndex++}. Quay lại", () =>
+                    {
+                        dialogueState = DialogueState.GardenerGreeting;
+                        UpdateDialogueUI();
+                    });
+                    break;
+
+                case DialogueState.UpgradeCampGreeting:
+                    npcNameText.text = activeNpc.NpcDisplayName;
+                    dialogueText.text = "Chào chú em! Trại ghe xóm nước chuyên đóng, sửa chữa vỏ lãi, ghe xuồng, lắp máy đuôi tôm đây. Cần làm gì nào?";
+
+                    npcAvatar.color = Color.white;
+                    playerAvatar.color = new Color(1f, 1f, 1f, 0.4f);
+
+                    CreateChoiceButton("1. Vào Trại Ghe (Nâng cấp & Sửa chữa)", () =>
+                    {
+                        OpenBoatYardPanel();
+                    });
+
+                    CreateChoiceButton("2. Tạm biệt", CloseDialogueAndReleasePlayer);
                     break;
             }
         }
@@ -943,6 +1096,7 @@ namespace ChoNoi.UI
 
         private void CloseDialogueAndReleasePlayer()
         {
+            justFinishedTrade = false;
             CloseAllDialogueAndPanels();
             
             var interactor = FindAnyObjectByType<PlayerNpcTradeInteractor>();
@@ -1239,6 +1393,644 @@ namespace ChoNoi.UI
             rectTransform.offsetMax = Vector2.zero;
             rectTransform.pivot = new Vector2(0.5f, 0.5f);
         }
+
+        // ==========================================
+        // QUANTITY & TRADE INPUT PANEL
+        // ==========================================
+        private void BuildTradeQuantityPanel(Transform parent)
+        {
+            tradeQuantityPanel = CreatePanel("TradeQuantityPanel", parent, new Color(0.08f, 0.12f, 0.14f, 0.98f));
+            Stretch(tradeQuantityPanel.GetComponent<RectTransform>(), new Vector2(0.35f, 0.30f), new Vector2(0.65f, 0.70f));
+
+            tradeTitleText = CreateText("Title", tradeQuantityPanel.transform, 24, TextAnchor.MiddleCenter);
+            tradeTitleText.color = new Color(0.92f, 0.82f, 0.55f, 1f);
+            Stretch(tradeTitleText.rectTransform, new Vector2(0.05f, 0.85f), new Vector2(0.95f, 0.95f));
+
+            tradeItemInfoText = CreateText("ItemInfo", tradeQuantityPanel.transform, 18, TextAnchor.UpperCenter);
+            Stretch(tradeItemInfoText.rectTransform, new Vector2(0.05f, 0.58f), new Vector2(0.95f, 0.82f));
+
+            CreateActionButton(tradeQuantityPanel.transform, "-", new Vector2(0.15f, 0.44f), new Vector2(0.27f, 0.54f), () => AdjustTradeQty(-1));
+            
+            GameObject inputObj = new GameObject("QtyInput", typeof(RectTransform), typeof(Image), typeof(InputField));
+            inputObj.transform.SetParent(tradeQuantityPanel.transform, false);
+            Stretch(inputObj.GetComponent<RectTransform>(), new Vector2(0.31f, 0.44f), new Vector2(0.53f, 0.54f));
+            inputObj.GetComponent<Image>().color = new Color(0.05f, 0.05f, 0.05f, 1f);
+            tradeQtyInputField = inputObj.GetComponent<InputField>();
+            
+            GameObject ph = new GameObject("Placeholder", typeof(RectTransform), typeof(Text));
+            ph.transform.SetParent(inputObj.transform, false);
+            Text phText = ph.GetComponent<Text>();
+            phText.text = "Nhập...";
+            phText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            phText.fontSize = 18;
+            phText.alignment = TextAnchor.MiddleCenter;
+            phText.color = Color.gray;
+            Stretch(phText.rectTransform, Vector2.zero, Vector2.one);
+
+            GameObject txtObj = new GameObject("Text", typeof(RectTransform), typeof(Text));
+            txtObj.transform.SetParent(inputObj.transform, false);
+            Text valText = txtObj.GetComponent<Text>();
+            valText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            valText.fontSize = 20;
+            valText.alignment = TextAnchor.MiddleCenter;
+            valText.color = Color.white;
+            Stretch(valText.rectTransform, Vector2.zero, Vector2.one);
+
+            tradeQtyInputField.placeholder = phText;
+            tradeQtyInputField.textComponent = valText;
+            tradeQtyInputField.onValueChanged.AddListener(OnTradeInputChanged);
+
+            CreateActionButton(tradeQuantityPanel.transform, "+", new Vector2(0.57f, 0.44f), new Vector2(0.69f, 0.54f), () => AdjustTradeQty(1));
+            CreateActionButton(tradeQuantityPanel.transform, "MAX", new Vector2(0.73f, 0.44f), new Vector2(0.85f, 0.54f), SetTradeQtyMax);
+
+            GameObject sliderObj = new GameObject("QtySlider", typeof(RectTransform), typeof(Slider));
+            sliderObj.transform.SetParent(tradeQuantityPanel.transform, false);
+            Stretch(sliderObj.GetComponent<RectTransform>(), new Vector2(0.15f, 0.32f), new Vector2(0.85f, 0.38f));
+            tradeQtySlider = sliderObj.GetComponent<Slider>();
+            
+            GameObject sliderBg = CreatePanel("Background", sliderObj.transform, new Color(0.1f, 0.1f, 0.1f, 1f));
+            Stretch(sliderBg.GetComponent<RectTransform>(), new Vector2(0f, 0.3f), new Vector2(1f, 0.7f));
+            
+            GameObject sliderFillArea = new GameObject("FillArea", typeof(RectTransform));
+            sliderFillArea.transform.SetParent(sliderObj.transform, false);
+            Stretch(sliderFillArea.GetComponent<RectTransform>(), new Vector2(0f, 0.3f), new Vector2(1f, 0.7f));
+            
+            GameObject sliderFill = CreatePanel("Fill", sliderFillArea.transform, new Color(0.88f, 0.71f, 0.34f, 1f));
+            Stretch(sliderFill.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
+            
+            tradeQtySlider.fillRect = sliderFill.GetComponent<RectTransform>();
+            tradeQtySlider.onValueChanged.AddListener(OnTradeSliderChanged);
+
+            tradeSummaryText = CreateText("Summary", tradeQuantityPanel.transform, 16, TextAnchor.UpperCenter);
+            Stretch(tradeSummaryText.rectTransform, new Vector2(0.05f, 0.14f), new Vector2(0.95f, 0.30f));
+
+            tradeConfirmButton = CreateActionButton(tradeQuantityPanel.transform, "XÁC NHẬN", new Vector2(0.15f, 0.04f), new Vector2(0.48f, 0.12f), ConfirmTrade);
+            tradeConfirmButton.GetComponent<Image>().color = new Color(0.18f, 0.38f, 0.22f, 1f);
+            
+            tradeCancelButton = CreateActionButton(tradeQuantityPanel.transform, "HỦY", new Vector2(0.52f, 0.04f), new Vector2(0.85f, 0.12f), CancelTrade);
+            tradeCancelButton.GetComponent<Image>().color = new Color(0.5f, 0.15f, 0.15f, 1f);
+
+            tradeQuantityPanel.SetActive(false);
+        }
+
+        public void OpenTradeQuantityPanel(ItemData item, bool buy, bool wholesale, bool priceMode = false)
+        {
+            isSettingUpSlider = true;
+            currentTradeItem = item;
+            isBuying = buy;
+            isWholesale = wholesale;
+            isPriceMode = priceMode;
+
+            if (choicePanel != null) choicePanel.SetActive(false);
+
+            if (isPriceMode)
+            {
+                var bargainingSystem = FindAnyObjectByType<ChoNoiMienTay.Systems.BargainingSystem>();
+                selectedTradeQty = bargainingSystem != null ? bargainingSystem.BargainQuantity : 1;
+
+                minTradePrice = Mathf.RoundToInt(item.basePrice * 0.5f);
+                maxTradePrice = Mathf.RoundToInt(item.basePrice * 3.0f);
+
+                if (bargainingSystem != null && bargainingSystem.PlayerProposedPrice > 0)
+                {
+                    selectedTradePrice = bargainingSystem.PlayerProposedPrice;
+                }
+                else if (bargainingSystem != null)
+                {
+                    selectedTradePrice = bargainingSystem.NpcOpeningPrice;
+                }
+                else
+                {
+                    selectedTradePrice = item.basePrice;
+                }
+                selectedTradePrice = Mathf.Clamp(selectedTradePrice, minTradePrice, maxTradePrice);
+
+                if (tradeQuantityPanel != null)
+                {
+                    tradeQuantityPanel.SetActive(true);
+                    tradeTitleText.text = "ĐỀ XUẤT GIÁ BÁN";
+                    tradeItemInfoText.text = $"Mặt hàng: <b>{item.itemName}</b>\nSố lượng bán sỉ: {selectedTradeQty} quả | Giá gốc: {item.basePrice:N0} VNĐ";
+
+                    tradeQtySlider.minValue = minTradePrice;
+                    tradeQtySlider.maxValue = maxTradePrice;
+                    tradeQtySlider.value = selectedTradePrice;
+
+                    tradeQtyInputField.text = selectedTradePrice.ToString();
+                    UpdateTradeSummary();
+                }
+            }
+            else
+            {
+                if (isBuying)
+                {
+                    int maxByCash = playerStats != null ? Mathf.FloorToInt(playerStats.CurrentMoney / (float)item.basePrice) : 999;
+                    float freeWeight = inventoryManager != null ? (inventoryManager.MaxWeightCapacity - inventoryManager.CurrentTotalWeight) : 100f;
+                    int maxByWeight = Mathf.FloorToInt(freeWeight / item.weight);
+                    maxTradeQty = Mathf.Min(maxByCash, maxByWeight);
+                    maxTradeQty = Mathf.Clamp(maxTradeQty, 0, 100);
+                }
+                else
+                {
+                    maxTradeQty = inventoryManager != null && inventoryManager.Inventory.TryGetValue(item, out int count) ? count : 0;
+                }
+
+                selectedTradeQty = maxTradeQty > 0 ? 1 : 0;
+
+                if (tradeQuantityPanel != null)
+                {
+                    tradeQuantityPanel.SetActive(true);
+                    tradeTitleText.text = isBuying ? "THU MUA NÔNG SẢN" : (isWholesale ? "BÁN SỈ NÔNG SẢN" : "BÁN LẺ NÔNG SẢN");
+                    tradeItemInfoText.text = $"Mặt hàng: <b>{item.itemName}</b>\nĐơn giá: {item.basePrice:N0} VNĐ/sp | Cân nặng: {item.weight} kg/sp";
+
+                    tradeQtySlider.minValue = maxTradeQty > 0 ? 1 : 0;
+                    tradeQtySlider.maxValue = Mathf.Max(1, maxTradeQty);
+                    tradeQtySlider.value = selectedTradeQty;
+
+                    tradeQtyInputField.text = selectedTradeQty.ToString();
+                    UpdateTradeSummary();
+                }
+            }
+            isSettingUpSlider = false;
+        }
+
+        private void OnTradeSliderChanged(float value)
+        {
+            if (isSettingUpSlider) return;
+            if (isPriceMode)
+            {
+                int step = 500;
+                var bargainingSystem = FindAnyObjectByType<ChoNoiMienTay.Systems.BargainingSystem>();
+                if (bargainingSystem != null && bargainingSystem.EconomyConfig != null)
+                {
+                    step = bargainingSystem.EconomyConfig.OfferStep;
+                }
+                selectedTradePrice = Mathf.RoundToInt(value / (float)step) * step;
+                selectedTradePrice = Mathf.Clamp(selectedTradePrice, minTradePrice, maxTradePrice);
+                tradeQtyInputField.text = selectedTradePrice.ToString();
+            }
+            else
+            {
+                selectedTradeQty = Mathf.RoundToInt(value);
+                tradeQtyInputField.text = selectedTradeQty.ToString();
+            }
+            UpdateTradeSummary();
+        }
+
+        private void OnTradeInputChanged(string text)
+        {
+            if (isSettingUpSlider) return;
+            if (int.TryParse(text, out int val))
+            {
+                if (isPriceMode)
+                {
+                    selectedTradePrice = Mathf.Clamp(val, minTradePrice, maxTradePrice);
+                    tradeQtySlider.value = selectedTradePrice;
+                }
+                else
+                {
+                    selectedTradeQty = Mathf.Clamp(val, maxTradeQty > 0 ? 1 : 0, maxTradeQty);
+                    tradeQtySlider.value = selectedTradeQty;
+                }
+                UpdateTradeSummary();
+            }
+        }
+
+        private void AdjustTradeQty(int amount)
+        {
+            if (isPriceMode)
+            {
+                int step = 500;
+                var bargainingSystem = FindAnyObjectByType<ChoNoiMienTay.Systems.BargainingSystem>();
+                if (bargainingSystem != null && bargainingSystem.EconomyConfig != null)
+                {
+                    step = bargainingSystem.EconomyConfig.OfferStep;
+                }
+                selectedTradePrice = Mathf.Clamp(selectedTradePrice + amount * step, minTradePrice, maxTradePrice);
+                tradeQtySlider.value = selectedTradePrice;
+                tradeQtyInputField.text = selectedTradePrice.ToString();
+            }
+            else
+            {
+                selectedTradeQty = Mathf.Clamp(selectedTradeQty + amount, maxTradeQty > 0 ? 1 : 0, maxTradeQty);
+                tradeQtySlider.value = selectedTradeQty;
+                tradeQtyInputField.text = selectedTradeQty.ToString();
+            }
+            UpdateTradeSummary();
+        }
+
+        private void SetTradeQtyMax()
+        {
+            if (isPriceMode)
+            {
+                selectedTradePrice = maxTradePrice;
+                tradeQtySlider.value = selectedTradePrice;
+                tradeQtyInputField.text = selectedTradePrice.ToString();
+            }
+            else
+            {
+                selectedTradeQty = maxTradeQty;
+                tradeQtySlider.value = selectedTradeQty;
+                tradeQtyInputField.text = selectedTradeQty.ToString();
+            }
+            UpdateTradeSummary();
+        }
+
+        private void UpdateTradeSummary()
+        {
+            if (currentTradeItem == null) return;
+
+            if (isPriceMode)
+            {
+                int priceTotal = selectedTradePrice * selectedTradeQty;
+                string playerMoney = playerStats != null ? playerStats.CurrentMoney.ToString("N0") : "0";
+
+                tradeSummaryText.text = $"Tổng số lượng: <b>{selectedTradeQty}</b> quả\n" +
+                                        $"Đơn giá đề xuất: <b>{selectedTradePrice:N0} VNĐ/quả</b>\n" +
+                                        $"Thu nhập dự kiến: <b>{priceTotal:N0} VNĐ</b> (Tiền túi: {playerMoney} VNĐ)";
+            }
+            else
+            {
+                float weightTotal = currentTradeItem.weight * selectedTradeQty;
+                int priceTotal = currentTradeItem.basePrice * selectedTradeQty;
+                if (!isBuying && !isWholesale)
+                {
+                    priceTotal = GetSalePriceOnVendor(currentTradeItem) * selectedTradeQty;
+                }
+
+                string moneyLabel = isBuying ? "Chi phí" : "Thu nhập dự kiến";
+                string playerMoney = playerStats != null ? playerStats.CurrentMoney.ToString("N0") : "0";
+                string freeWeight = inventoryManager != null ? $"{inventoryManager.MaxWeightCapacity - inventoryManager.CurrentTotalWeight:0.0} kg" : "0 kg";
+
+                tradeSummaryText.text = $"Tổng số lượng: <b>{selectedTradeQty}</b> / {maxTradeQty}\n" +
+                                        $"Tổng cân nặng: {weightTotal:0.0} kg (Khoang trống: {freeWeight})\n" +
+                                        $"{moneyLabel}: <b>{priceTotal:N0} VNĐ</b> (Tiền túi: {playerMoney} VNĐ)";
+            }
+        }
+
+        private void ConfirmTrade()
+        {
+            if (currentTradeItem == null)
+            {
+                tradeQuantityPanel.SetActive(false);
+                if (dialogueState != DialogueState.Closed && choicePanel != null) choicePanel.SetActive(true);
+                return;
+            }
+
+            if (isPriceMode)
+            {
+                var bargainingSystem = FindAnyObjectByType<ChoNoiMienTay.Systems.BargainingSystem>();
+                if (bargainingSystem != null)
+                {
+                    if (bargainingSystem.PlayerProposedPrice > 0)
+                    {
+                        bargainingSystem.CounterOffer(selectedTradePrice);
+                    }
+                    else
+                    {
+                        bargainingSystem.ProposePrice(selectedTradePrice);
+                    }
+
+                    if (bargainingSystem.HasActiveSession)
+                    {
+                        dialogueState = DialogueState.MerchantBargaining;
+                    }
+                    else
+                    {
+                        if (activeNpc != null) activeNpc.HasTraded = true;
+                        justFinishedTrade = true;
+                        dialogueState = DialogueState.MerchantGreeting;
+                    }
+                }
+                tradeQuantityPanel.SetActive(false);
+                UpdateDialogueUI();
+            }
+            else
+            {
+                if (selectedTradeQty <= 0)
+                {
+                    tradeQuantityPanel.SetActive(false);
+                    if (dialogueState != DialogueState.Closed && choicePanel != null) choicePanel.SetActive(true);
+                    return;
+                }
+
+                if (isBuying)
+                {
+                    var economy = FindAnyObjectByType<EconomyManager>();
+                    if (economy != null && inventoryManager != null)
+                    {
+                        if (economy.BuyItemToInventory(currentTradeItem, selectedTradeQty, inventoryManager))
+                        {
+                            Debug.Log($"[Trade] Đã mua {selectedTradeQty}x {currentTradeItem.itemName}");
+                        }
+                    }
+                    tradeQuantityPanel.SetActive(false);
+                    UpdateDialogueUI();
+                }
+                else
+                {
+                    var economy = FindAnyObjectByType<EconomyManager>();
+                    if (economy != null && inventoryManager != null)
+                    {
+                        int sellPrice = GetSalePriceOnVendor(currentTradeItem);
+                        int finalRevenue = sellPrice * selectedTradeQty;
+                        if (economy.SellItemWholesale(currentTradeItem, selectedTradeQty, inventoryManager, finalRevenue))
+                        {
+                            Debug.Log($"[Trade] Đã bán lẻ {selectedTradeQty}x {currentTradeItem.itemName}");
+                        }
+                    }
+                    tradeQuantityPanel.SetActive(false);
+                    UpdateDialogueUI();
+                }
+            }
+        }
+
+        private void CancelTrade()
+        {
+            tradeQuantityPanel.SetActive(false);
+            if (isPriceMode)
+            {
+                var bargainingSystem = FindAnyObjectByType<ChoNoiMienTay.Systems.BargainingSystem>();
+                if (bargainingSystem != null)
+                {
+                    bargainingSystem.RejectDeal();
+                    if (activeNpc != null) activeNpc.HasTraded = true;
+                    justFinishedTrade = true;
+                }
+                dialogueState = DialogueState.MerchantGreeting;
+                UpdateDialogueUI();
+            }
+            else
+            {
+                if (dialogueState != DialogueState.Closed && choicePanel != null)
+                {
+                    choicePanel.SetActive(true);
+                }
+            }
+        }
+
+        // ==========================================
+        // UPGRADE & MAINTENANCE BOATYARD PANEL (TRẠI GHE)
+        // ==========================================
+        private void BuildBoatYardPanel(Transform parent)
+        {
+            boatYardPanel = CreatePanel("BoatYardPanel", parent, new Color(0.06f, 0.1f, 0.12f, 0.98f));
+            Stretch(boatYardPanel.GetComponent<RectTransform>(), new Vector2(0.20f, 0.15f), new Vector2(0.80f, 0.85f));
+
+            yardTitleText = CreateText("Title", boatYardPanel.transform, 30, TextAnchor.MiddleCenter);
+            yardTitleText.color = new Color(0.92f, 0.82f, 0.55f, 1f);
+            Stretch(yardTitleText.rectTransform, new Vector2(0.05f, 0.88f), new Vector2(0.95f, 0.96f));
+
+            GameObject repairPanel = CreatePanel("RepairSection", boatYardPanel.transform, new Color(0.04f, 0.06f, 0.08f, 0.9f));
+            Stretch(repairPanel.GetComponent<RectTransform>(), new Vector2(0.05f, 0.65f), new Vector2(0.95f, 0.85f));
+            
+            yardDurabilityText = CreateText("DurabilityLabel", repairPanel.transform, 20, TextAnchor.MiddleLeft);
+            Stretch(yardDurabilityText.rectTransform, new Vector2(0.04f, 0.55f), new Vector2(0.50f, 0.85f));
+
+            GameObject dSliderObj = new GameObject("DurabilityBar", typeof(RectTransform), typeof(Slider));
+            dSliderObj.transform.SetParent(repairPanel.transform, false);
+            Stretch(dSliderObj.GetComponent<RectTransform>(), new Vector2(0.04f, 0.20f), new Vector2(0.50f, 0.45f));
+            yardDurabilitySlider = dSliderObj.GetComponent<Slider>();
+            yardDurabilitySlider.interactable = false;
+            
+            GameObject dSliderBg = CreatePanel("Bg", dSliderObj.transform, new Color(0.15f, 0.15f, 0.15f, 1f));
+            Stretch(dSliderBg.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
+            
+            GameObject dSliderFillArea = new GameObject("FillArea", typeof(RectTransform));
+            dSliderFillArea.transform.SetParent(dSliderObj.transform, false);
+            Stretch(dSliderFillArea.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
+            
+            GameObject dSliderFill = CreatePanel("Fill", dSliderFillArea.transform, new Color(0.2f, 0.6f, 0.2f, 1f));
+            Stretch(dSliderFill.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
+            yardDurabilitySlider.fillRect = dSliderFill.GetComponent<RectTransform>();
+
+            yardRepairButton = CreateActionButton(repairPanel.transform, "SỬA CHỮA GHE", new Vector2(0.60f, 0.20f), new Vector2(0.94f, 0.80f), YardRepairBoat);
+            yardRepairButton.GetComponent<Image>().color = new Color(0.18f, 0.38f, 0.22f, 1f);
+
+            GameObject upgradesSection = CreatePanel("UpgradesSection", boatYardPanel.transform, new Color(0.04f, 0.06f, 0.08f, 0.9f));
+            Stretch(upgradesSection.GetComponent<RectTransform>(), new Vector2(0.05f, 0.14f), new Vector2(0.95f, 0.60f));
+
+            GameObject colStorage = CreatePanel("ColStorage", upgradesSection.transform, new Color(0.08f, 0.10f, 0.12f, 0.9f));
+            Stretch(colStorage.GetComponent<RectTransform>(), new Vector2(0.02f, 0.05f), new Vector2(0.24f, 0.95f));
+            upgradeStorageText = CreateText("StorageInfo", colStorage.transform, 16, TextAnchor.UpperCenter);
+            Stretch(upgradeStorageText.rectTransform, new Vector2(0.05f, 0.30f), new Vector2(0.95f, 0.95f));
+            upgradeStorageButton = CreateActionButton(colStorage.transform, "NÂNG CẤP KHOANG", new Vector2(0.05f, 0.05f), new Vector2(0.95f, 0.25f), YardBuyStorage);
+
+            GameObject colEngine = CreatePanel("ColEngine", upgradesSection.transform, new Color(0.08f, 0.10f, 0.12f, 0.9f));
+            Stretch(colEngine.GetComponent<RectTransform>(), new Vector2(0.26f, 0.05f), new Vector2(0.48f, 0.95f));
+            upgradeEngineText = CreateText("EngineInfo", colEngine.transform, 16, TextAnchor.UpperCenter);
+            Stretch(upgradeEngineText.rectTransform, new Vector2(0.05f, 0.30f), new Vector2(0.95f, 0.95f));
+            upgradeEngineButton = CreateActionButton(colEngine.transform, "NÂNG CẤP MÁY", new Vector2(0.05f, 0.05f), new Vector2(0.95f, 0.25f), YardBuyEngine);
+
+            GameObject colRoof = CreatePanel("ColRoof", upgradesSection.transform, new Color(0.08f, 0.10f, 0.12f, 0.9f));
+            Stretch(colRoof.GetComponent<RectTransform>(), new Vector2(0.50f, 0.05f), new Vector2(0.72f, 0.95f));
+            upgradeRoofText = CreateText("RoofInfo", colRoof.transform, 16, TextAnchor.UpperCenter);
+            Stretch(upgradeRoofText.rectTransform, new Vector2(0.05f, 0.30f), new Vector2(0.95f, 0.95f));
+            upgradeRoofButton = CreateActionButton(colRoof.transform, "LỢP MÁI", new Vector2(0.05f, 0.05f), new Vector2(0.95f, 0.25f), YardBuyRoof);
+
+            GameObject colBamboo = CreatePanel("ColBamboo", upgradesSection.transform, new Color(0.08f, 0.10f, 0.12f, 0.9f));
+            Stretch(colBamboo.GetComponent<RectTransform>(), new Vector2(0.74f, 0.05f), new Vector2(0.96f, 0.95f));
+            upgradeBambooText = CreateText("BambooInfo", colBamboo.transform, 16, TextAnchor.UpperCenter);
+            Stretch(upgradeBambooText.rectTransform, new Vector2(0.05f, 0.30f), new Vector2(0.95f, 0.95f));
+            upgradeBambooButton = CreateActionButton(colBamboo.transform, "NÂNG SÀO BẸO", new Vector2(0.05f, 0.05f), new Vector2(0.95f, 0.25f), YardBuyBamboo);
+
+            CreateActionButton(boatYardPanel.transform, "ĐÓNG TRẠI GHE", new Vector2(0.40f, 0.03f), new Vector2(0.60f, 0.10f), CloseBoatYardPanel);
+
+            boatYardPanel.SetActive(false);
+        }
+
+        public void OpenBoatYardPanel()
+        {
+            if (boatYardPanel != null)
+            {
+                boatYardPanel.SetActive(true);
+                RefreshBoatYardUI();
+            }
+        }
+
+        public void CloseBoatYardPanel()
+        {
+            if (boatYardPanel != null)
+            {
+                boatYardPanel.SetActive(false);
+            }
+        }
+
+        private void RefreshBoatYardUI()
+        {
+            if (boatCampManager == null) return;
+
+            var durability = FindAnyObjectByType<DurabilityManager>();
+            if (durability != null)
+            {
+                yardDurabilityText.text = $"Độ bền ghe: {durability.CurrentDurability:0} / {durability.MaxDurability:0}";
+                yardDurabilitySlider.minValue = 0;
+                yardDurabilitySlider.maxValue = durability.MaxDurability;
+                yardDurabilitySlider.value = durability.CurrentDurability;
+
+                int repairCost = GetRepairCostOnVendor();
+                yardRepairButton.GetComponentInChildren<Text>().text = $"SỬA CHỮA GHE\n({repairCost:N0} VNĐ)";
+                yardRepairButton.interactable = durability.CurrentDurability < durability.MaxDurability && playerStats.CurrentMoney >= repairCost;
+            }
+
+            BoatUpgradeCatalogSO catalog = boatCampManager.UpgradeCatalog;
+            if (catalog != null)
+            {
+                StorageUpgradeTier storageTier = catalog.GetStorageTier(boatCampManager.StorageLevel);
+                upgradeStorageText.text = $"KHOANG CHỨA\nCấp hiện tại: {boatCampManager.StorageLevel}\n" +
+                                          $"{(storageTier != null ? $"Tiếp theo: +{storageTier.capacityBonus} kg\nGiá: {storageTier.costMoney:N0}đ" : "ĐÃ ĐẠT CẤP TỐI ĐA")}";
+                upgradeStorageButton.interactable = storageTier != null && playerStats.CurrentMoney >= storageTier.costMoney;
+
+                EngineUpgradeTier engineTier = catalog.GetEngineTier(boatCampManager.engineLevel);
+                upgradeEngineText.text = $"ĐỘNG CƠ GHE\nCấp hiện tại: {boatCampManager.engineLevel}\n" +
+                                        $"{(engineTier != null ? $"Tiếp theo: x{engineTier.thrustMultiplier} Lực đẩy\nGiá: {engineTier.costMoney:N0}đ" : "ĐÃ ĐẠT CẤP TỐI ĐA")}";
+                upgradeEngineButton.interactable = engineTier != null && playerStats.CurrentMoney >= engineTier.costMoney;
+
+                RoofUpgradeTier roofTier = catalog.GetRoofTier(boatCampManager.hasRoof ? 1 : 0);
+                upgradeRoofText.text = $"MÁI CHE GHE\nTrạng thái: {(boatCampManager.hasRoof ? "Đã lợp mái" : "Chưa có mái")}\n" +
+                                      $"{(!boatCampManager.hasRoof && roofTier != null ? $"Lợp mái che\nGiá: {roofTier.costMoney:N0}đ" : "ĐÃ ĐẠT CẤP TỐI ĐA")}";
+                upgradeRoofButton.interactable = !boatCampManager.hasRoof && roofTier != null && playerStats.CurrentMoney >= roofTier.costMoney;
+
+                BambooPoleUpgradeTier bambooTier = catalog.GetBambooPoleTier(boatCampManager.bambooPoleLevel);
+                upgradeBambooText.text = $"SÀO CÂY BẸO\nCấp hiện tại: {boatCampManager.bambooPoleLevel}\n" +
+                                        $"{(bambooTier != null ? $"Tiếp theo: +1 Slot treo\nGiá: {bambooTier.costMoney:N0}đ" : "ĐÃ ĐẠT CẤP TỐI ĐA")}";
+                upgradeBambooButton.interactable = bambooTier != null && playerStats.CurrentMoney >= bambooTier.costMoney;
+            }
+        }
+
+        private void YardBuyStorage()
+        {
+            if (boatCampManager != null && boatCampManager.TryBuyNextStorageUpgrade())
+            {
+                RefreshBoatYardUI();
+                if (riverMarketHUD != null) riverMarketHUD.SendMessage("RefreshAll", SendMessageOptions.DontRequireReceiver);
+            }
+        }
+
+        private void YardBuyEngine()
+        {
+            if (boatCampManager != null && boatCampManager.TryBuyNextEngineUpgrade())
+            {
+                RefreshBoatYardUI();
+                if (riverMarketHUD != null) riverMarketHUD.SendMessage("RefreshAll", SendMessageOptions.DontRequireReceiver);
+            }
+        }
+
+        private void YardBuyRoof()
+        {
+            if (boatCampManager != null && boatCampManager.TryBuyRoofUpgrade())
+            {
+                RefreshBoatYardUI();
+                if (riverMarketHUD != null) riverMarketHUD.SendMessage("RefreshAll", SendMessageOptions.DontRequireReceiver);
+            }
+        }
+
+        private void YardBuyBamboo()
+        {
+            if (boatCampManager != null && boatCampManager.TryBuyNextBambooPoleUpgrade())
+            {
+                RefreshBoatYardUI();
+                if (riverMarketHUD != null) riverMarketHUD.SendMessage("RefreshAll", SendMessageOptions.DontRequireReceiver);
+            }
+        }
+
+        private void YardRepairBoat()
+        {
+            if (boatCampManager != null)
+            {
+                RepairBoatOnVendor();
+                RefreshBoatYardUI();
+                if (riverMarketHUD != null) riverMarketHUD.SendMessage("RefreshAll", SendMessageOptions.DontRequireReceiver);
+            }
+        }
+
+        // ==========================================
+        // CARGO SLOT CLICK/DRAG ACTIONS
+        // ==========================================
+        public void HandleCargoSlotClicked(int index)
+        {
+            if (selectedCargoSlotIndex == -1)
+            {
+                if (inventoryManager.CargoSlots[index].item != null)
+                {
+                    selectedCargoSlotIndex = index;
+                    RefreshMarketing();
+                }
+            }
+            else
+            {
+                if (selectedCargoSlotIndex == index)
+                {
+                    selectedCargoSlotIndex = -1;
+                    RefreshMarketing();
+                }
+                else
+                {
+                    inventoryManager.SwapSlots(selectedCargoSlotIndex, index);
+                    selectedCargoSlotIndex = -1;
+                    RefreshMarketing();
+                }
+            }
+        }
+
+        public void HandleCargoSlotDropped(int fromSlotIndex, int toSlotIndex)
+        {
+            if (fromSlotIndex != -1 && fromSlotIndex != toSlotIndex)
+            {
+                inventoryManager.SwapSlots(fromSlotIndex, toSlotIndex);
+                RefreshMarketing();
+            }
+        }
+
+        private void MakeScrollable(GameObject parentPanel, GameObject gridParent, Vector2 minAnchor, Vector2 maxAnchor)
+        {
+            GameObject viewport = new GameObject("Viewport", typeof(RectTransform), typeof(UnityEngine.UI.RectMask2D));
+            viewport.transform.SetParent(parentPanel.transform, false);
+            Stretch(viewport.GetComponent<RectTransform>(), minAnchor, maxAnchor);
+
+            gridParent.transform.SetParent(viewport.transform, false);
+
+            RectTransform contentRT = gridParent.GetComponent<RectTransform>();
+            contentRT.anchorMin = new Vector2(0f, 1f);
+            contentRT.anchorMax = new Vector2(1f, 1f);
+            contentRT.pivot = new Vector2(0.5f, 1f);
+            contentRT.anchoredPosition = Vector2.zero;
+            contentRT.sizeDelta = new Vector2(0f, 300f);
+
+            var fitter = gridParent.GetComponent<ContentSizeFitter>();
+            if (fitter == null) fitter = gridParent.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+
+            var scrollRect = viewport.AddComponent<UnityEngine.UI.ScrollRect>();
+            scrollRect.content = contentRT;
+            scrollRect.viewport = viewport.GetComponent<RectTransform>();
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+            scrollRect.scrollSensitivity = 20f;
+        }
+
+        private void HandleDayChanged(int day)
+        {
+            ResetNpcsTradeState();
+        }
+
+        private void ResetNpcsTradeState()
+        {
+            var npcs = FindObjectsByType<NpcTradeTarget>(FindObjectsSortMode.None);
+            foreach (var npc in npcs)
+            {
+                npc.HasTraded = false;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            var timeManager = FindAnyObjectByType<TimeManager>();
+            if (timeManager != null)
+            {
+                timeManager.OnDayChanged -= HandleDayChanged;
+            }
+        }
     }
 
     // ==========================================
@@ -1249,6 +2041,7 @@ namespace ChoNoi.UI
     {
         public ItemData item;
         public FullSimulatorUI parentUI;
+        public int fromCargoSlotIndex = -1; // Chỉ số ô hàng gốc (-1 nếu từ nguồn khác)
 
         private GameObject dragObject;
         private Canvas canvas;
@@ -1297,7 +2090,14 @@ namespace ChoNoi.UI
 
         public void OnPointerClick(PointerEventData eventData)
         {
-            if (parentUI != null) parentUI.HandleItemClicked(item);
+            if (fromCargoSlotIndex != -1 && parentUI != null)
+            {
+                parentUI.HandleCargoSlotClicked(fromCargoSlotIndex);
+            }
+            else if (parentUI != null)
+            {
+                parentUI.HandleItemClicked(item);
+            }
         }
 
         private void UpdatePosition(Vector2 screenPos)
@@ -1332,6 +2132,33 @@ namespace ChoNoi.UI
             if (parentUI != null)
             {
                 parentUI.HandleSlotClicked(slotIndex);
+            }
+        }
+    }
+
+    public class UICargoGridSlotHandler : MonoBehaviour, IDropHandler, IPointerClickHandler
+    {
+        public int slotIndex;
+        public FullSimulatorUI parentUI;
+        public ItemData item;
+
+        public void OnDrop(PointerEventData eventData)
+        {
+            var drag = eventData.pointerDrag?.GetComponent<UIDragHandler>();
+            if (drag != null && parentUI != null)
+            {
+                if (drag.fromCargoSlotIndex != -1)
+                {
+                    parentUI.HandleCargoSlotDropped(drag.fromCargoSlotIndex, slotIndex);
+                }
+            }
+        }
+
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            if (parentUI != null)
+            {
+                parentUI.HandleCargoSlotClicked(slotIndex);
             }
         }
     }
