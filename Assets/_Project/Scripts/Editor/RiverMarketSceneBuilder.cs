@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
+using UnityEditor.Animations;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -28,7 +29,8 @@ namespace ChoNoiMienTay.Editor
         private const string MerchantAvatarPath = "Assets/_Project/Art/Avatars/merchant.png";
         private const string VillagerAvatarPath = "Assets/_Project/Art/Avatars/villager.png";
         private const string BoatModelPath = "Assets/_Project/Art/Models/thuyencoban.fbx";
-        private const string NpcModelPath = "Assets/_Project/Art/Models/nvatdemo.fbx";
+        private const string NpcModel1Path = "Assets/_Project/Animation/Character_1/Neutral Idle.fbx";
+        private const string NpcModel2Path = "Assets/_Project/Animation/Character_2/Neutral Idle.fbx";
         private const string BargainingItemsFolder = "Assets/_Project/ScriptableObjects/Bargaining/Items";
 
         [MenuItem("ChoNoi/Scenes/Build River Market Scene")]
@@ -41,6 +43,8 @@ namespace ChoNoiMienTay.Editor
             }
 
             EnsureFolders();
+
+            ConfigureAnimations();
 
             BoatUpgradeCatalogSO upgradeCatalog = EnsureUpgradeCatalog();
             MarketNewsDatabaseSO newsDatabase = EnsureNewsDatabase();
@@ -547,6 +551,7 @@ namespace ChoNoiMienTay.Editor
                         model.transform.localScale = Vector3.one * (isLargeBoat ? 1.6f : 1.25f);
                         ApplyBoatOrientationFix(model);
                         DisableColliders(model);
+                        CleanImportedModel(model);
                     }
                 }
             else
@@ -573,7 +578,7 @@ namespace ChoNoiMienTay.Editor
                 soupPot.GetComponent<Collider>().enabled = false;
             }
 
-            GameObject npc = CreateNpcAvatar(boatRoot.transform, isLargeBoat ? "MerchantNpcOnBoat" : "VendorNpcOnBoat", new Vector3(0f, 1.35f, 0.9f), new Color(0.88f, 0.68f, 0.48f));
+            GameObject npc = CreateNpcAvatar(boatRoot.transform, isLargeBoat ? "MerchantNpcOnBoat" : "VendorNpcOnBoat", new Vector3(0f, 1.35f, 0.9f), new Color(0.88f, 0.68f, 0.48f), !isLargeBoat);
             SimpleNpcWander wander = npc.AddComponent<SimpleNpcWander>();
             wander.Configure(new[] { new Vector3(-0.55f, 0f, -0.65f), new Vector3(0.55f, 0f, 0.65f) }, isLargeBoat ? 0.45f : 0.35f);
             AddTradeTarget(npc, isLargeBoat ? "Thuong Lai" : "Ghe Ban Hang", 3.1f);
@@ -600,7 +605,7 @@ namespace ChoNoiMienTay.Editor
                 new Vector3(6f, 0f, 2f),
                 new Vector3(3f, 0f, 7f),
                 new Vector3(-2f, 0f, 4f)
-            }, 1.15f);
+            }, 1.15f, false);
 
             CreateAmbientNpc(npcRoot.transform, terrain, "DockWorker_B", new Vector3(88f, 0f, 60f), new[]
             {
@@ -608,7 +613,7 @@ namespace ChoNoiMienTay.Editor
                 new Vector3(5f, 0f, -1f),
                 new Vector3(7f, 0f, 5f),
                 new Vector3(1f, 0f, 6f)
-            }, 1.05f);
+            }, 1.05f, true);
 
             CreateAmbientNpc(npcRoot.transform, terrain, "Trader_A", new Vector3(104f, 0f, 72f), new[]
             {
@@ -616,7 +621,7 @@ namespace ChoNoiMienTay.Editor
                 new Vector3(4f, 0f, 3f),
                 new Vector3(-3f, 0f, 5f),
                 new Vector3(-5f, 0f, -2f)
-            }, 1.10f);
+            }, 1.10f, false);
 
             CreateAmbientNpc(npcRoot.transform, terrain, "Trader_B", new Vector3(132f, 0f, 72f), new[]
             {
@@ -624,7 +629,7 @@ namespace ChoNoiMienTay.Editor
                 new Vector3(4f, 0f, 4f),
                 new Vector3(-4f, 0f, 6f),
                 new Vector3(-2f, 0f, -3f)
-            }, 1.08f);
+            }, 1.08f, true);
 
             CreateAmbientNpc(npcRoot.transform, terrain, "Villager_A", new Vector3(154f, 0f, 66f), new[]
             {
@@ -632,7 +637,7 @@ namespace ChoNoiMienTay.Editor
                 new Vector3(6f, 0f, 3f),
                 new Vector3(2f, 0f, 8f),
                 new Vector3(-4f, 0f, 5f)
-            }, 0.96f);
+            }, 0.96f, false);
 
             CreateAmbientNpc(npcRoot.transform, terrain, "Villager_B", new Vector3(170f, 0f, 96f), new[]
             {
@@ -640,7 +645,7 @@ namespace ChoNoiMienTay.Editor
                 new Vector3(5f, 0f, 2f),
                 new Vector3(2f, 0f, 7f),
                 new Vector3(-3f, 0f, 4f)
-            }, 0.92f);
+            }, 0.92f, true);
 
             CreateAmbientNpc(npcRoot.transform, terrain, "Villager_C", new Vector3(58f, 0f, 110f), new[]
             {
@@ -648,13 +653,13 @@ namespace ChoNoiMienTay.Editor
                 new Vector3(7f, 0f, 2f),
                 new Vector3(5f, 0f, 7f),
                 new Vector3(-1f, 0f, 8f)
-            }, 1.02f);
+            }, 1.02f, false);
         }
 
-        private static void CreateAmbientNpc(Transform parent, Terrain terrain, string name, Vector3 worldSeedPosition, Vector3[] localWaypoints, float speed)
+        private static void CreateAmbientNpc(Transform parent, Terrain terrain, string name, Vector3 worldSeedPosition, Vector3[] localWaypoints, float speed, bool useModel2)
         {
             float y = terrain != null ? terrain.SampleHeight(worldSeedPosition) : worldSeedPosition.y;
-            GameObject npc = CreateNpcAvatar(parent, name, new Vector3(worldSeedPosition.x, y, worldSeedPosition.z), new Color(0.72f, 0.42f, 0.32f));
+            GameObject npc = CreateNpcAvatar(parent, name, new Vector3(worldSeedPosition.x, y, worldSeedPosition.z), new Color(0.72f, 0.42f, 0.32f), useModel2);
             SimpleNpcWander wander = npc.AddComponent<SimpleNpcWander>();
             wander.Configure(localWaypoints, speed);
             AddTradeTarget(npc, name.Replace("_", " "), 3f);
@@ -728,6 +733,7 @@ namespace ChoNoiMienTay.Editor
                     modelInstance.transform.localScale = new Vector3(458f, 458f, 458f);
                     modelInstance.transform.localPosition = new Vector3(0f, 0.1f, 0f);
                     ApplyBoatOrientationFix(modelInstance);
+                    CleanImportedModel(modelInstance);
                 }
             }
             else
@@ -758,7 +764,7 @@ namespace ChoNoiMienTay.Editor
             CreatePrimitiveChild(visualRoot.transform, "Body", PrimitiveType.Capsule, new Vector3(0f, 0.9f, 0f), new Vector3(0.55f, 0.9f, 0.55f), new Color(0.24f, 0.36f, 0.50f));
             CreatePrimitiveChild(visualRoot.transform, "Hat", PrimitiveType.Cylinder, new Vector3(0f, 1.85f, 0f), new Vector3(0.42f, 0.08f, 0.42f), new Color(0.82f, 0.68f, 0.36f));
 
-            GameObject shoreVillager = CreateNpcAvatar(parent, "ShoreVillagerNpc", new Vector3(78f, 4.25f, 38f), new Color(0.72f, 0.42f, 0.32f));
+            GameObject shoreVillager = CreateNpcAvatar(parent, "ShoreVillagerNpc", new Vector3(78f, 4.25f, 38f), new Color(0.72f, 0.42f, 0.32f), true);
             shoreVillager.AddComponent<SimpleNpcWander>()
                 .Configure(new[] { new Vector3(0f, 0f, 0f), new Vector3(8f, 0f, 3f), new Vector3(2f, 0f, 8f), new Vector3(-5f, 0f, 4f) }, 1.1f);
             AddTradeTarget(shoreVillager, "Dan Lang", 3.2f);
@@ -979,13 +985,14 @@ namespace ChoNoiMienTay.Editor
             return child;
         }
 
-        private static GameObject CreateNpcAvatar(Transform parent, string name, Vector3 localPosition, Color tunicColor)
+        private static GameObject CreateNpcAvatar(Transform parent, string name, Vector3 localPosition, Color tunicColor, bool useModel2 = false)
         {
             GameObject npc = new GameObject(name);
             npc.transform.SetParent(parent, false);
             npc.transform.localPosition = localPosition;
 
-            GameObject npcModelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(NpcModelPath);
+            string path = useModel2 ? NpcModel2Path : NpcModel1Path;
+            GameObject npcModelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
             if (npcModelPrefab != null)
             {
                 GameObject model = PrefabUtility.InstantiatePrefab(npcModelPrefab) as GameObject;
@@ -995,8 +1002,31 @@ namespace ChoNoiMienTay.Editor
                     model.transform.SetParent(npc.transform, false);
                     model.transform.localPosition = Vector3.zero;
                     model.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
-                    model.transform.localScale = Vector3.one * 110f;
+                    model.transform.localScale = Vector3.one; // Standard scale for human models from Animation folders
                     DisableColliders(model);
+                    CleanImportedModel(model);
+
+                    // Setup Animator component
+                    Animator animator = model.GetComponent<Animator>();
+                    if (animator == null)
+                    {
+                        animator = model.AddComponent<Animator>();
+                    }
+                    animator.applyRootMotion = false;
+
+                    string controllerPath = useModel2 
+                        ? "Assets/_Project/Animation/Character_2/Character_2_Controller.controller" 
+                        : "Assets/_Project/Animation/Character_1/Character_1_Controller.controller";
+                    RuntimeAnimatorController controller = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(controllerPath);
+                    if (controller != null)
+                    {
+                        animator.runtimeAnimatorController = controller;
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[RiverMarketSceneBuilder] AnimatorController not found at: {controllerPath}");
+                    }
+
                     return npc;
                 }
             }
@@ -1009,6 +1039,61 @@ namespace ChoNoiMienTay.Editor
             head.GetComponent<Collider>().enabled = false;
             hat.GetComponent<Collider>().enabled = false;
             return npc;
+        }
+
+        private static void ConfigureAnimations()
+        {
+            // Create Animator Controllers
+            CreateFolderAnimatorController("Assets/_Project/Animation/Character_1", "Assets/_Project/Animation/Character_1/Character_1_Controller.controller");
+            CreateFolderAnimatorController("Assets/_Project/Animation/Character_2", "Assets/_Project/Animation/Character_2/Character_2_Controller.controller");
+
+            AssetDatabase.Refresh();
+        }
+
+        private static void CreateFolderAnimatorController(string folderPath, string savePath)
+        {
+            if (!Directory.Exists(folderPath)) return;
+
+            // Delete old controller to avoid duplication/issues
+            if (File.Exists(savePath))
+            {
+                AssetDatabase.DeleteAsset(savePath);
+            }
+
+            var controller = AnimatorController.CreateAnimatorControllerAtPath(savePath);
+            var stateMachine = controller.layers[0].stateMachine;
+
+            string[] fbxFiles = Directory.GetFiles(folderPath, "*.fbx");
+            foreach (string file in fbxFiles)
+            {
+                AnimationClip clip = GetAnimationClipFromFBX(file);
+                if (clip != null)
+                {
+                    string stateName = Path.GetFileNameWithoutExtension(file);
+                    if (stateName.ToLower() == "user") continue; // Skip the user model file itself
+
+                    var state = stateMachine.AddState(stateName);
+                    state.motion = clip;
+
+                    if (stateName.ToLower().Contains("neutral idle") || stateName.ToLower().Contains("idle"))
+                    {
+                        stateMachine.defaultState = state;
+                    }
+                }
+            }
+        }
+
+        private static AnimationClip GetAnimationClipFromFBX(string path)
+        {
+            Object[] assets = AssetDatabase.LoadAllAssetsAtPath(path);
+            foreach (Object asset in assets)
+            {
+                if (asset is AnimationClip clip && !clip.name.StartsWith("__preview__"))
+                {
+                    return clip;
+                }
+            }
+            return null;
         }
 
         private static Transform CreateMarker(Transform parent, string name, Vector3 localPosition, Quaternion localRotation)
@@ -1025,6 +1110,35 @@ namespace ChoNoiMienTay.Editor
             Collider[] colliders = root.GetComponentsInChildren<Collider>(true);
             foreach (Collider collider in colliders)
                 collider.enabled = false;
+        }
+
+        private static void CleanImportedModel(GameObject model)
+        {
+            if (model == null) return;
+
+            // Find and destroy all cameras in the imported model
+            Camera[] cameras = model.GetComponentsInChildren<Camera>(true);
+            foreach (var cam in cameras)
+            {
+                if (cam.gameObject != Camera.main?.gameObject)
+                {
+                    Object.DestroyImmediate(cam.gameObject);
+                }
+            }
+
+            // Find and destroy all lights in the imported model
+            Light[] lights = model.GetComponentsInChildren<Light>(true);
+            foreach (var light in lights)
+            {
+                Object.DestroyImmediate(light.gameObject);
+            }
+
+            // Find and destroy all AudioListeners in the imported model
+            AudioListener[] listeners = model.GetComponentsInChildren<AudioListener>(true);
+            foreach (var listener in listeners)
+            {
+                Object.DestroyImmediate(listener);
+            }
         }
 
         private static void AddTradeTarget(GameObject npcRoot, string displayName, float radius)
