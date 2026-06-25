@@ -24,6 +24,7 @@ namespace ChoNoi.UI
         public RiverMarketHUD riverMarketHUD;
         public PlayerStats playerStats;
         public BoatCampManager boatCampManager;
+        public BoatBoardingController boatBoardingController;
 
         private GameObject canvasObject;
         private GameObject tutorialPanel;
@@ -143,6 +144,8 @@ namespace ChoNoi.UI
                 playerStats = FindAnyObjectByType<PlayerStats>();
             if (boatCampManager == null)
                 boatCampManager = FindAnyObjectByType<BoatCampManager>();
+            if (boatBoardingController == null)
+                boatBoardingController = FindAnyObjectByType<BoatBoardingController>();
 
             var timeManager = FindAnyObjectByType<TimeManager>();
             if (timeManager != null)
@@ -156,8 +159,7 @@ namespace ChoNoi.UI
         private void Update()
         {
             // Detect if player is boarded
-            var boarding = FindAnyObjectByType<BoatBoardingController>();
-            bool isBoarded = boarding != null && boarding.IsBoarded;
+            bool isBoarded = boatBoardingController != null && boatBoardingController.IsBoarded;
 
             // B key to toggle marketing panel, only available when boarded on the boat and dialogue is closed
             if (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.bKey.wasPressedThisFrame)
