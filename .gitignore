@@ -120,3 +120,6 @@ InitTestScene*.unity*
 
 # Visual Studio solution format
 *.slnx
+
+# library
+Library
