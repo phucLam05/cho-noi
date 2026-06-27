@@ -78,6 +78,8 @@ Packages/packages-lock.json linguist-generated
 *.3dm                   lfs
 *.3ds                   lfs
 *.blend                 lfs
+*.glb                   lfs
+*.gltf                  lfs
 *.blend1                lfs
 *.c4d                   lfs
 *.collada               lfs

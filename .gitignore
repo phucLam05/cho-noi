@@ -110,3 +110,16 @@ InitTestScene*.unity*
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
 
 
+# Custom Ignores for Cho Noi Mien Tay
+# Node modules
+/[Nn]ode_modules/
+/tmp/[Nn]ode_modules/
+
+# VS Code settings
+.vscode/
+
+# Visual Studio solution format
+*.slnx
+
+# library
+Library/
