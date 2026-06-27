@@ -22,7 +22,8 @@ namespace ChoNoiMienTay.UI
         [SerializeField] private List<ItemData> marketItems = new List<ItemData>();
 
         private Canvas canvas;
-        private Text statusText;
+        private Text statsText;
+        private Text timeText;
         private Text upgradeText;
         private Text newsText;
         private Text newsNpcNameText;
@@ -37,6 +38,8 @@ namespace ChoNoiMienTay.UI
         private string currentTradeNpcName = "Thuong Lai";
 
         public bool IsNpcTradeOpen => isNpcTradeOpen;
+        public bool IsUpgradeOpen => upgradePanel != null && upgradePanel.activeSelf;
+        public bool IsNewsOpen => newsPanel != null && newsPanel.activeSelf;
 
         public void Configure(
             TimeManager timeSource,
@@ -136,12 +139,12 @@ namespace ChoNoiMienTay.UI
 
             GameObject topBar = CreatePanel("TopBar", canvasObject.transform, new Color(0f, 0f, 0f, 0.65f));
             Stretch(topBar.GetComponent<RectTransform>(), new Vector2(0.02f, 0.90f), new Vector2(0.98f, 0.98f));
-            statusText = CreateText("StatusText", topBar.transform, 24, TextAnchor.MiddleLeft);
-            Stretch(statusText.rectTransform, new Vector2(0.02f, 0.15f), new Vector2(0.72f, 0.85f));
+            
+            statsText = CreateText("StatsText", topBar.transform, 24, TextAnchor.MiddleLeft);
+            Stretch(statsText.rectTransform, new Vector2(0.02f, 0.15f), new Vector2(0.60f, 0.85f));
 
-            CreateActionButton(topBar.transform, "Trai Ghe", new Vector2(0.74f, 0.18f), new Vector2(0.81f, 0.82f), ToggleUpgradePanel);
-            CreateActionButton(topBar.transform, "Cho", new Vector2(0.825f, 0.18f), new Vector2(0.885f, 0.82f), ToggleTradePanel);
-            CreateActionButton(topBar.transform, "Tin Don", new Vector2(0.90f, 0.18f), new Vector2(0.98f, 0.82f), ToggleNewsPanel);
+            timeText = CreateText("TimeText", topBar.transform, 24, TextAnchor.MiddleRight);
+            Stretch(timeText.rectTransform, new Vector2(0.70f, 0.15f), new Vector2(0.98f, 0.85f));
 
             upgradePanel = CreatePanel("UpgradePanel", canvasObject.transform, new Color(0.08f, 0.16f, 0.18f, 0.86f));
             Stretch(upgradePanel.GetComponent<RectTransform>(), new Vector2(0.02f, 0.08f), new Vector2(0.26f, 0.86f));
@@ -149,24 +152,25 @@ namespace ChoNoiMienTay.UI
             Stretch(upgradePanel.transform.Find("UpgradeTitle").GetComponent<RectTransform>(), new Vector2(0.06f, 0.86f), new Vector2(0.94f, 0.96f));
 
             upgradeText = CreateText("UpgradeText", upgradePanel.transform, 22, TextAnchor.UpperLeft);
-            Stretch(upgradeText.rectTransform, new Vector2(0.08f, 0.47f), new Vector2(0.92f, 0.82f));
+            Stretch(upgradeText.rectTransform, new Vector2(0.08f, 0.55f), new Vector2(0.92f, 0.82f));
 
-            CreateActionButton(upgradePanel.transform, "Khoang Chua", new Vector2(0.08f, 0.33f), new Vector2(0.92f, 0.41f), () =>
+            CreateActionButton(upgradePanel.transform, "Khoang Chua", new Vector2(0.08f, 0.45f), new Vector2(0.92f, 0.53f), () =>
             {
                 if (boatCampManager != null && boatCampManager.TryBuyNextStorageUpgrade()) RefreshAll();
             });
-            CreateActionButton(upgradePanel.transform, "Dong Co", new Vector2(0.08f, 0.23f), new Vector2(0.92f, 0.31f), () =>
+            CreateActionButton(upgradePanel.transform, "Dong Co", new Vector2(0.08f, 0.35f), new Vector2(0.92f, 0.43f), () =>
             {
                 if (boatCampManager != null && boatCampManager.TryBuyNextEngineUpgrade()) RefreshAll();
             });
-            CreateActionButton(upgradePanel.transform, "Lop Mai", new Vector2(0.08f, 0.13f), new Vector2(0.92f, 0.21f), () =>
+            CreateActionButton(upgradePanel.transform, "Lop Mai", new Vector2(0.08f, 0.25f), new Vector2(0.92f, 0.33f), () =>
             {
                 if (boatCampManager != null && boatCampManager.TryBuyRoofUpgrade()) RefreshAll();
             });
-            CreateActionButton(upgradePanel.transform, "Cay Beo", new Vector2(0.08f, 0.03f), new Vector2(0.92f, 0.11f), () =>
+            CreateActionButton(upgradePanel.transform, "Cay Beo", new Vector2(0.08f, 0.15f), new Vector2(0.92f, 0.23f), () =>
             {
                 if (boatCampManager != null && boatCampManager.TryBuyNextBambooPoleUpgrade()) RefreshAll();
             });
+            CreateActionButton(upgradePanel.transform, "Dong", new Vector2(0.08f, 0.05f), new Vector2(0.92f, 0.13f), CloseAllPanels);
 
             tradePanel = CreatePanel("TradePanel", canvasObject.transform, new Color(0.12f, 0.12f, 0.08f, 0.88f));
             Stretch(tradePanel.GetComponent<RectTransform>(), new Vector2(0.31f, 0.08f), new Vector2(0.69f, 0.44f));
@@ -227,13 +231,24 @@ namespace ChoNoiMienTay.UI
 
         private void RefreshStatus()
         {
-            if (statusText == null || timeManager == null || playerStats == null || inventoryManager == null) return;
+            UpdateTopBarText();
+        }
 
-            statusText.text =
-                $"Ngay {timeManager.CurrentDay}  |  {timeManager.CurrentPhase}  |  " +
-                $"Tien: {playerStats.CurrentMoney:N0}  |  The luc: {playerStats.CurrentStamina:0}/{playerStats.MaxStamina:0}  |  " +
-                $"Tai trong: {inventoryManager.CurrentTotalWeight:0}/{inventoryManager.MaxWeightCapacity:0} kg  |  " +
-                $"Do ben: {(durabilityManager != null ? durabilityManager.CurrentDurability.ToString("0") : "--")}";
+        private void UpdateTopBarText()
+        {
+            if (statsText == null || timeText == null) return;
+
+            string money = playerStats != null ? playerStats.CurrentMoney.ToString("N0") : "0";
+            string stamina = playerStats != null ? $"{playerStats.CurrentStamina:0}/{playerStats.MaxStamina:0}" : "0/0";
+            string durability = durabilityManager != null ? $"{durabilityManager.CurrentDurability:0}/{durabilityManager.MaxDurability:0}" : "0/0";
+            
+            float weight = inventoryManager != null ? inventoryManager.CurrentTotalWeight : 0f;
+            float maxWeight = inventoryManager != null ? inventoryManager.MaxWeightCapacity : 100f;
+
+            string dayPhase = timeManager != null ? $"Ngay {timeManager.CurrentDay} | {timeManager.CurrentPhase}" : "Ngay 1 | Dawn";
+
+            statsText.text = $"Tien: {money} | The luc: {stamina} | Tai trong: {weight:0}/{maxWeight:0} kg | Do ben: {durability}";
+            timeText.text = $"{dayPhase}";
         }
 
         private void RefreshUpgrades()
@@ -407,11 +422,7 @@ namespace ChoNoiMienTay.UI
             if (FindAnyObjectByType<EventSystem>() != null) return;
 
             GameObject eventSystemObject = new GameObject("EventSystem", typeof(EventSystem));
-#if ENABLE_INPUT_SYSTEM
             eventSystemObject.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
-#else
-            eventSystemObject.AddComponent<StandaloneInputModule>();
-#endif
         }
 
         private GameObject CreatePanel(string name, Transform parent, Color color)
@@ -470,16 +481,45 @@ namespace ChoNoiMienTay.UI
             rectTransform.pivot = new Vector2(0.5f, 0.5f);
         }
 
-        private void ToggleUpgradePanel() => TogglePanel(upgradePanel);
-        private void ToggleTradePanel() => TogglePanel(tradePanel);
-        private void ToggleNewsPanel() => TogglePanel(newsPanel);
-
-        private void TogglePanel(GameObject panel)
+        public void OpenUpgradePanel()
         {
-            if (panel == null)
-                return;
+            CloseAllPanels();
+            SetPanelVisible(upgradePanel, true);
+        }
 
-            SetPanelVisible(panel, !panel.activeSelf);
+        public void OpenNewsPanel()
+        {
+            CloseAllPanels();
+            SetPanelVisible(newsPanel, true);
+        }
+
+        public void CloseAllPanels()
+        {
+            SetPanelVisible(upgradePanel, false);
+            SetPanelVisible(tradePanel, false);
+            SetPanelVisible(newsPanel, false);
+            isNpcTradeOpen = false;
+        }
+
+        private void ToggleUpgradePanel()
+        {
+            bool wasActive = upgradePanel != null && upgradePanel.activeSelf;
+            CloseAllPanels();
+            if (!wasActive) SetPanelVisible(upgradePanel, true);
+        }
+
+        private void ToggleTradePanel()
+        {
+            bool wasActive = tradePanel != null && tradePanel.activeSelf;
+            CloseAllPanels();
+            if (!wasActive) SetPanelVisible(tradePanel, true);
+        }
+
+        private void ToggleNewsPanel()
+        {
+            bool wasActive = newsPanel != null && newsPanel.activeSelf;
+            CloseAllPanels();
+            if (!wasActive) SetPanelVisible(newsPanel, true);
         }
 
         public void OpenNpcTrade(string npcName)

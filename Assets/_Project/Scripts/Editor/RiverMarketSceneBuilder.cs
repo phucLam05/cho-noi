@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
+using UnityEditor.Animations;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -27,8 +28,11 @@ namespace ChoNoiMienTay.Editor
         private const string InputActionsPath = "Assets/InputSystem_Actions.inputactions";
         private const string MerchantAvatarPath = "Assets/_Project/Art/Avatars/merchant.png";
         private const string VillagerAvatarPath = "Assets/_Project/Art/Avatars/villager.png";
+        private const string PaddlingBoatModelPath = "Assets/_Project/Animation/Boat_with_padd/boat_with_pad.fbx";
+        private const string PaddlingBoatControllerPath = "Assets/_Project/Animation/Boat_with_padd/BoatAnimatorController.controller";
         private const string BoatModelPath = "Assets/_Project/Art/Models/thuyencoban.fbx";
-        private const string NpcModelPath = "Assets/_Project/Art/Models/nvatdemo.fbx";
+        private const string NpcModel1Path = "Assets/_Project/Animation/Character_1/Neutral Idle.fbx";
+        private const string NpcModel2Path = "Assets/_Project/Animation/Character_2/Neutral Idle.fbx";
         private const string BargainingItemsFolder = "Assets/_Project/ScriptableObjects/Bargaining/Items";
 
         [MenuItem("ChoNoi/Scenes/Build River Market Scene")]
@@ -41,6 +45,8 @@ namespace ChoNoiMienTay.Editor
             }
 
             EnsureFolders();
+
+            ConfigureAnimations();
 
             BoatUpgradeCatalogSO upgradeCatalog = EnsureUpgradeCatalog();
             MarketNewsDatabaseSO newsDatabase = EnsureNewsDatabase();
@@ -56,6 +62,7 @@ namespace ChoNoiMienTay.Editor
             Terrain terrain = terrainObj.GetComponent<Terrain>();
             GameObject waterPlane = BuildWater(worldRoot.transform);
             BuildObstacles(worldRoot.transform);
+            BuildPier(worldRoot.transform);
             BuildNpcBoats(worldRoot.transform);
             BuildRiverLife(worldRoot.transform);
             BuildEnvironmentAssets(worldRoot.transform, terrain);
@@ -215,13 +222,10 @@ namespace ChoNoiMienTay.Editor
                 new Keyframe(0.5f, 0.006f),
                 new Keyframe(0.75f, 0.018f),
                 new Keyframe(1f, 0.04f)));
-            SetPrivate(profile, "maxWaterHeight", 4f);
-            SetPrivate(profile, "minWaterHeight", 1.6f);
+            SetPrivate(profile, "maxWaterHeight", 3.1f);
+            SetPrivate(profile, "minWaterHeight", 3.1f);
             SetPrivate(profile, "waterLevelOverDay", new AnimationCurve(
                 new Keyframe(0f, 1f),
-                new Keyframe(0.25f, 0.85f),
-                new Keyframe(0.5f, 0.45f),
-                new Keyframe(0.75f, 0.15f),
                 new Keyframe(1f, 1f)));
 
             EditorUtility.SetDirty(profile);
@@ -261,7 +265,6 @@ namespace ChoNoiMienTay.Editor
             {
                 "Assets/_Project/Art/model_mau/Cay/palm_trees.glb",
                 "Assets/_Project/Art/model_mau/Cay/mango_tree.glb",
-                "Assets/_Project/Art/model_mau/Cay/tree_elm.glb",
                 "Assets/_Project/Art/model_mau/Cay/small_trees.glb"
             };
 
@@ -287,9 +290,9 @@ namespace ChoNoiMienTay.Editor
             float forkHalfWidth = 14f;
 
             // Rải cây cối trên đất liền dọc theo 2 bên bờ sông
-            for (float x = 12f; x <= 228f; x += 14f)
+            for (float x = 12f; x <= 228f; x += 18f)
             {
-                for (float z = 12f; z <= 208f; z += 14f)
+                for (float z = 12f; z <= 208f; z += 18f)
                 {
                     // Thêm độ lệch ngẫu nhiên nhẹ để phân bố trông tự nhiên
                     float posX = x + Random.Range(-4f, 4f);
@@ -333,7 +336,6 @@ namespace ChoNoiMienTay.Editor
                                 float scaleMultiplier = 1f;
                                 if (path.Contains("palm_trees")) scaleMultiplier = Random.Range(0.62f, 0.86f);
                                 else if (path.Contains("mango_tree")) scaleMultiplier = Random.Range(0.38f, 0.58f);
-                                else if (path.Contains("tree_elm")) scaleMultiplier = Random.Range(0.42f, 0.62f);
                                 else if (path.Contains("small_trees")) scaleMultiplier = Random.Range(0.55f, 0.82f);
 
                                 treeInstance.transform.localScale = Vector3.one * scaleMultiplier;
@@ -415,7 +417,7 @@ namespace ChoNoiMienTay.Editor
             float riverBed = 0.015f;
             float mainHalfWidth = 18f;
             float forkHalfWidth = 14f;
-            float bankBlendWidth = 28f;
+            float bankBlendWidth = 6f;
 
             for (int row = 0; row < res; row++)
             {
@@ -430,8 +432,14 @@ namespace ChoNoiMienTay.Editor
                     riverBlend = Mathf.Max(riverBlend, 1f - Mathf.SmoothStep(0f, bankBlendWidth, Mathf.Max(0f, dLeft - forkHalfWidth)));
                     riverBlend = Mathf.Max(riverBlend, 1f - Mathf.SmoothStep(0f, bankBlendWidth, Mathf.Max(0f, dRight - forkHalfWidth)));
 
-                    float shoreNoise = Mathf.PerlinNoise(point.x * 0.025f, point.y * 0.025f) * 0.018f;
-                    float height = Mathf.Lerp(baseHeight + shoreNoise, riverBed, riverBlend);
+                    // Multi-octave fractal Perlin noise for rugged terrain
+                    float n1 = Mathf.PerlinNoise(point.x * 0.015f, point.y * 0.015f) * 0.05f;   // Low frequency hills
+                    float n2 = Mathf.PerlinNoise(point.x * 0.05f, point.y * 0.05f) * 0.018f;    // Mid frequency bumps
+                    float n3 = Mathf.PerlinNoise(point.x * 0.12f, point.y * 0.12f) * 0.006f;    // High frequency details
+                    float landNoise = n1 + n2 + n3;
+
+                    // Smoothly suppress noise on the riverbed and banks to keep them clean
+                    float height = Mathf.Lerp(baseHeight + (1f - riverBlend) * landNoise, riverBed, riverBlend);
 
                     // Khu bờ spawn phẳng, rộng để người chơi bắt đầu đi bộ trước khi lên ghe.
                     if (point.y < 52f && point.x < 112f)
@@ -458,7 +466,7 @@ namespace ChoNoiMienTay.Editor
             GameObject water = GameObject.CreatePrimitive(PrimitiveType.Plane);
             water.name = "WaterSurface";
             water.transform.SetParent(parent);
-            water.transform.position = new Vector3(120f, 3.35f, 110f);
+            water.transform.position = new Vector3(120f, 3.1f, 110f);
             water.transform.localScale = new Vector3(24f, 1f, 22f);
 
             // MeshCollider from Primitive Plane is concave and doesn't support trigger, disable it
@@ -484,8 +492,33 @@ namespace ChoNoiMienTay.Editor
             obstacles.transform.SetParent(parent);
 
             CreateObstacle(obstacles.transform, "HyacinthPatch", PrimitiveType.Sphere, new Vector3(103f, 3.25f, 122f), new Vector3(3f, 0.35f, 2.5f), new Color(0.20f, 0.55f, 0.25f), true);
-            CreateObstacle(obstacles.transform, "WoodPost", PrimitiveType.Cylinder, new Vector3(139f, 3.4f, 84f), new Vector3(0.4f, 2.4f, 0.4f), new Color(0.36f, 0.23f, 0.13f), false);
+            GameObject woodPost = CreateObstacle(obstacles.transform, "WoodPost", PrimitiveType.Cylinder, new Vector3(135f, 3.4f, 75f), new Vector3(0.8f, 3.5f, 0.8f), new Color(0.36f, 0.23f, 0.13f), false);
+            CreatePrimitiveChild(woodPost.transform, "RedMarker", PrimitiveType.Cylinder, new Vector3(0f, 0.7f, 0f), new Vector3(1.2f, 0.25f, 1.2f), new Color(0.9f, 0.1f, 0.1f));
             CreateObstacle(obstacles.transform, "BrokenBoat", PrimitiveType.Cube, new Vector3(73f, 3.35f, 154f), new Vector3(4f, 0.8f, 1.6f), new Color(0.25f, 0.25f, 0.25f), false);
+        }
+
+        private static void BuildPier(Transform parent)
+        {
+            GameObject pierRoot = new GameObject("WoodenPier");
+            pierRoot.transform.SetParent(parent);
+
+            // Horizontal deck: cube from X = 94 to 114, Y = 4.25f, Z = 30f.
+            // Length in X is 20f. Width in Z is 3f. Thickness in Y is 0.2f.
+            GameObject deck = CreatePrimitiveChild(pierRoot.transform, "Deck", PrimitiveType.Cube, new Vector3(104f, 4.25f, 30f), new Vector3(20f, 0.2f, 3f), new Color(0.45f, 0.33f, 0.22f));
+
+            // Support pillars: vertical cylinders.
+            // Support pillars at X = 99, 104, 109, 113.5 on both Z sides (Z = 28.8 and Z = 31.2).
+            // Pillars height from riverbed (approx Y = 1.0f) to deck Y = 4.25f. Height = 3.5f, Y-pos = 2.5f.
+            float[] pillarXs = { 99f, 104f, 109f, 113.5f };
+            float[] pillarZs = { 28.8f, 31.2f };
+            int i = 0;
+            foreach (float px in pillarXs)
+            {
+                foreach (float pz in pillarZs)
+                {
+                    CreatePrimitiveChild(pierRoot.transform, $"Pillar_{i++}", PrimitiveType.Cylinder, new Vector3(px, 2.5f, pz), new Vector3(0.3f, 3.5f, 0.3f), new Color(0.35f, 0.25f, 0.15f));
+                }
+            }
         }
 
         private static void BuildNpcBoats(Transform parent)
@@ -495,6 +528,107 @@ namespace ChoNoiMienTay.Editor
 
             BuildNpcBoat(npcRoot.transform, "MerchantLargeBoat", new Vector3(140f, 3.55f, 118f), new Vector3(3.6f, 0.9f, 8.4f), new Color(0.48f, 0.20f, 0.12f), true);
             BuildNpcBoat(npcRoot.transform, "FoodVendorSmallBoat", new Vector3(111f, 3.45f, 84f), new Vector3(2.0f, 0.6f, 4.2f), new Color(0.20f, 0.34f, 0.52f), false);
+            
+            // Build the paddling NPC boat
+            BuildPaddlingNpcBoat(npcRoot.transform);
+        }
+
+        private static void BuildPaddlingNpcBoat(Transform parent)
+        {
+            GameObject boatRoot = new GameObject("PaddlingNpcBoat");
+            boatRoot.transform.SetParent(parent, false);
+            boatRoot.transform.position = new Vector3(120f, 3.1f, 40f);
+
+            var patrol = boatRoot.AddComponent<NpcBoatPatrol>();
+            
+            Vector3[] points = new Vector3[]
+            {
+                new Vector3(120f, 3.1f, 40f),
+                new Vector3(120f, 3.1f, 85f),
+                new Vector3(108f, 3.1f, 100f),
+                new Vector3(108f, 3.1f, 115f),
+                new Vector3(120f, 3.1f, 95f),
+                new Vector3(120f, 3.1f, 65f)
+            };
+
+            GameObject visualRoot = new GameObject("BoatVisualRoot");
+            visualRoot.transform.SetParent(boatRoot.transform, false);
+            visualRoot.transform.localPosition = Vector3.zero;
+            visualRoot.transform.localRotation = Quaternion.identity;
+
+            GameObject boatModelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PaddlingBoatModelPath);
+            Animator npcAnimator = null;
+
+            if (boatModelPrefab != null)
+            {
+                GameObject model = PrefabUtility.InstantiatePrefab(boatModelPrefab) as GameObject;
+                if (model != null)
+                {
+                    model.name = "BoatModel";
+                    model.transform.SetParent(visualRoot.transform, false);
+                    model.transform.localPosition = Vector3.zero;
+                    model.transform.localRotation = Quaternion.Euler(0f, 180f, 0f); // Rotate 180 so it travels pointy bow first
+                    model.transform.localScale = new Vector3(0.6f, 0.6f, 0.6f); // Scale boat down to fit the NPC
+
+                    CleanImportedModel(model);
+                    DisableColliders(model);
+                    ApplyBoatMaterials(model);
+
+                    // Setup Animator for the boat paddles (and disable it)
+                    Animator boatAnimator = model.GetComponent<Animator>();
+                    if (boatAnimator == null)
+                    {
+                        boatAnimator = model.AddComponent<Animator>();
+                    }
+                    boatAnimator.applyRootMotion = false;
+                    boatAnimator.runtimeAnimatorController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(PaddlingBoatControllerPath);
+                    boatAnimator.enabled = true;
+
+                    var bob = model.AddComponent<AmbientBob>();
+                    SetPrivate(bob, "bobAxis", new Vector3(0f, 0.08f, 0f));
+                    SetPrivate(bob, "swayAxis", new Vector3(0f, 0f, 2.5f));
+                    SetPrivate(bob, "bobSpeed", 0.9f);
+                    SetPrivate(bob, "swaySpeed", 1.1f);
+
+                    // Parent NPC to visualRoot so its scale remains 1.0f (not scaled down with the boat)
+                    // Place it at Z = -0.6f to align with the middle seat.
+                    // Instantiate Paddling.fbx directly (which has the oar built-in)
+                    GameObject npc = CreateNpcAvatar(
+                        visualRoot.transform, 
+                        "PaddlingNpc", 
+                        new Vector3(0f, 0.15f, -0.6f), 
+                        new Color(0.15f, 0.45f, 0.25f), 
+                        false, 
+                        "Assets/_Project/Animation/Character_1/Paddling.fbx"
+                    );
+
+                    if (npc != null)
+                    {
+                        Transform modelTrans = npc.transform.Find("NpcModel");
+                        if (modelTrans != null)
+                        {
+                            npcAnimator = modelTrans.GetComponent<Animator>();
+                        }
+                    }
+                }
+            }
+            else
+            {
+                GameObject hull = CreatePrimitiveChild(visualRoot.transform, "BoatHull", PrimitiveType.Cube, Vector3.zero, new Vector3(1.6f, 0.6f, 4.5f), new Color(0.5f, 0.35f, 0.2f));
+                hull.GetComponent<Collider>().enabled = false;
+                
+                GameObject npc = CreateNpcAvatar(visualRoot.transform, "PaddlingNpc", new Vector3(0f, 0.4f, -0.3f), new Color(0.15f, 0.45f, 0.25f), false);
+                if (npc != null)
+                {
+                    Transform modelTrans = npc.transform.Find("NpcModel");
+                    if (modelTrans != null)
+                    {
+                        npcAnimator = modelTrans.GetComponent<Animator>();
+                    }
+                }
+            }
+
+            patrol.Configure(points, 1.8f, npcAnimator);
         }
 
         private static void BuildNpcBoat(Transform parent, string name, Vector3 position, Vector3 hullScale, Color hullColor, bool isLargeBoat)
@@ -521,6 +655,7 @@ namespace ChoNoiMienTay.Editor
                         model.transform.localScale = Vector3.one * (isLargeBoat ? 1.6f : 1.25f);
                         ApplyBoatOrientationFix(model);
                         DisableColliders(model);
+                        CleanImportedModel(model);
                     }
                 }
             else
@@ -547,7 +682,7 @@ namespace ChoNoiMienTay.Editor
                 soupPot.GetComponent<Collider>().enabled = false;
             }
 
-            GameObject npc = CreateNpcAvatar(boatRoot.transform, isLargeBoat ? "MerchantNpcOnBoat" : "VendorNpcOnBoat", new Vector3(0f, 1.35f, 0.9f), new Color(0.88f, 0.68f, 0.48f));
+            GameObject npc = CreateNpcAvatar(boatRoot.transform, isLargeBoat ? "MerchantNpcOnBoat" : "VendorNpcOnBoat", new Vector3(0f, 1.35f, 0.9f), new Color(0.88f, 0.68f, 0.48f), !isLargeBoat);
             SimpleNpcWander wander = npc.AddComponent<SimpleNpcWander>();
             wander.Configure(new[] { new Vector3(-0.55f, 0f, -0.65f), new Vector3(0.55f, 0f, 0.65f) }, isLargeBoat ? 0.45f : 0.35f);
             AddTradeTarget(npc, isLargeBoat ? "Thuong Lai" : "Ghe Ban Hang", 3.1f);
@@ -574,7 +709,7 @@ namespace ChoNoiMienTay.Editor
                 new Vector3(6f, 0f, 2f),
                 new Vector3(3f, 0f, 7f),
                 new Vector3(-2f, 0f, 4f)
-            }, 1.15f);
+            }, 1.15f, false);
 
             CreateAmbientNpc(npcRoot.transform, terrain, "DockWorker_B", new Vector3(88f, 0f, 60f), new[]
             {
@@ -582,7 +717,7 @@ namespace ChoNoiMienTay.Editor
                 new Vector3(5f, 0f, -1f),
                 new Vector3(7f, 0f, 5f),
                 new Vector3(1f, 0f, 6f)
-            }, 1.05f);
+            }, 1.05f, true);
 
             CreateAmbientNpc(npcRoot.transform, terrain, "Trader_A", new Vector3(104f, 0f, 72f), new[]
             {
@@ -590,7 +725,7 @@ namespace ChoNoiMienTay.Editor
                 new Vector3(4f, 0f, 3f),
                 new Vector3(-3f, 0f, 5f),
                 new Vector3(-5f, 0f, -2f)
-            }, 1.10f);
+            }, 1.10f, false);
 
             CreateAmbientNpc(npcRoot.transform, terrain, "Trader_B", new Vector3(132f, 0f, 72f), new[]
             {
@@ -598,7 +733,7 @@ namespace ChoNoiMienTay.Editor
                 new Vector3(4f, 0f, 4f),
                 new Vector3(-4f, 0f, 6f),
                 new Vector3(-2f, 0f, -3f)
-            }, 1.08f);
+            }, 1.08f, true);
 
             CreateAmbientNpc(npcRoot.transform, terrain, "Villager_A", new Vector3(154f, 0f, 66f), new[]
             {
@@ -606,7 +741,7 @@ namespace ChoNoiMienTay.Editor
                 new Vector3(6f, 0f, 3f),
                 new Vector3(2f, 0f, 8f),
                 new Vector3(-4f, 0f, 5f)
-            }, 0.96f);
+            }, 0.96f, false);
 
             CreateAmbientNpc(npcRoot.transform, terrain, "Villager_B", new Vector3(170f, 0f, 96f), new[]
             {
@@ -614,7 +749,7 @@ namespace ChoNoiMienTay.Editor
                 new Vector3(5f, 0f, 2f),
                 new Vector3(2f, 0f, 7f),
                 new Vector3(-3f, 0f, 4f)
-            }, 0.92f);
+            }, 0.92f, true);
 
             CreateAmbientNpc(npcRoot.transform, terrain, "Villager_C", new Vector3(58f, 0f, 110f), new[]
             {
@@ -622,13 +757,13 @@ namespace ChoNoiMienTay.Editor
                 new Vector3(7f, 0f, 2f),
                 new Vector3(5f, 0f, 7f),
                 new Vector3(-1f, 0f, 8f)
-            }, 1.02f);
+            }, 1.02f, false);
         }
 
-        private static void CreateAmbientNpc(Transform parent, Terrain terrain, string name, Vector3 worldSeedPosition, Vector3[] localWaypoints, float speed)
+        private static void CreateAmbientNpc(Transform parent, Terrain terrain, string name, Vector3 worldSeedPosition, Vector3[] localWaypoints, float speed, bool useModel2)
         {
             float y = terrain != null ? terrain.SampleHeight(worldSeedPosition) : worldSeedPosition.y;
-            GameObject npc = CreateNpcAvatar(parent, name, new Vector3(worldSeedPosition.x, y, worldSeedPosition.z), new Color(0.72f, 0.42f, 0.32f));
+            GameObject npc = CreateNpcAvatar(parent, name, new Vector3(worldSeedPosition.x, y, worldSeedPosition.z), new Color(0.72f, 0.42f, 0.32f), useModel2);
             SimpleNpcWander wander = npc.AddComponent<SimpleNpcWander>();
             wander.Configure(localWaypoints, speed);
             AddTradeTarget(npc, name.Replace("_", " "), 3f);
@@ -702,6 +837,7 @@ namespace ChoNoiMienTay.Editor
                     modelInstance.transform.localScale = new Vector3(458f, 458f, 458f);
                     modelInstance.transform.localPosition = new Vector3(0f, 0.1f, 0f);
                     ApplyBoatOrientationFix(modelInstance);
+                    CleanImportedModel(modelInstance);
                 }
             }
             else
@@ -732,13 +868,18 @@ namespace ChoNoiMienTay.Editor
             CreatePrimitiveChild(visualRoot.transform, "Body", PrimitiveType.Capsule, new Vector3(0f, 0.9f, 0f), new Vector3(0.55f, 0.9f, 0.55f), new Color(0.24f, 0.36f, 0.50f));
             CreatePrimitiveChild(visualRoot.transform, "Hat", PrimitiveType.Cylinder, new Vector3(0f, 1.85f, 0f), new Vector3(0.42f, 0.08f, 0.42f), new Color(0.82f, 0.68f, 0.36f));
 
-            GameObject shoreVillager = CreateNpcAvatar(parent, "ShoreVillagerNpc", new Vector3(78f, 4.25f, 38f), new Color(0.72f, 0.42f, 0.32f));
+            GameObject shoreVillager = CreateNpcAvatar(parent, "ShoreVillagerNpc", new Vector3(78f, 4.25f, 38f), new Color(0.72f, 0.42f, 0.32f), true);
             shoreVillager.AddComponent<SimpleNpcWander>()
                 .Configure(new[] { new Vector3(0f, 0f, 0f), new Vector3(8f, 0f, 3f), new Vector3(2f, 0f, 8f), new Vector3(-5f, 0f, 4f) }, 1.1f);
             AddTradeTarget(shoreVillager, "Dan Lang", 3.2f);
 
             Transform standPoint = CreateMarker(boat.transform, "PlayerStandPoint", new Vector3(0f, 1.35f, -0.4f), Quaternion.identity);
-            Transform dismountPoint = CreateMarker(boat.transform, "DismountPoint", new Vector3(-24f, 0.5f, -6f), Quaternion.Euler(0f, 80f, 0f));
+            
+            GameObject dismountObj = new GameObject("DismountPoint");
+            dismountObj.transform.SetParent(parent, false);
+            dismountObj.transform.position = new Vector3(110f, 5.2f, 30f);
+            dismountObj.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
+            Transform dismountPoint = dismountObj.transform;
 
             BoatBoardingController boarding = player.AddComponent<BoatBoardingController>();
             boarding.Configure(
@@ -763,12 +904,15 @@ namespace ChoNoiMienTay.Editor
             if (boarding == null)
                 return;
 
+            GameObject dismountObj = GameObject.Find("DismountPoint");
+            Transform dismountPoint = dismountObj != null ? dismountObj.transform : null;
+
             boarding.Configure(
                 player.GetComponent<ShorePlayerController>(),
                 player.transform.Find("PlayerVisualRoot"),
                 boat.transform,
                 boat.transform.Find("PlayerStandPoint"),
-                boat.transform.Find("DismountPoint"),
+                dismountPoint,
                 boat.GetComponent<BoatController>(),
                 boat.GetComponent<PCBoatInput>(),
                 followCamera);
@@ -945,13 +1089,14 @@ namespace ChoNoiMienTay.Editor
             return child;
         }
 
-        private static GameObject CreateNpcAvatar(Transform parent, string name, Vector3 localPosition, Color tunicColor)
+        private static GameObject CreateNpcAvatar(Transform parent, string name, Vector3 localPosition, Color tunicColor, bool useModel2 = false, string customModelPath = null)
         {
             GameObject npc = new GameObject(name);
             npc.transform.SetParent(parent, false);
             npc.transform.localPosition = localPosition;
 
-            GameObject npcModelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(NpcModelPath);
+            string path = string.IsNullOrEmpty(customModelPath) ? (useModel2 ? NpcModel2Path : NpcModel1Path) : customModelPath;
+            GameObject npcModelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
             if (npcModelPrefab != null)
             {
                 GameObject model = PrefabUtility.InstantiatePrefab(npcModelPrefab) as GameObject;
@@ -961,8 +1106,66 @@ namespace ChoNoiMienTay.Editor
                     model.transform.SetParent(npc.transform, false);
                     model.transform.localPosition = Vector3.zero;
                     model.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
-                    model.transform.localScale = Vector3.one * 110f;
+                    model.transform.localScale = Vector3.one; // Standard scale for human models from Animation folders
                     DisableColliders(model);
+                    CleanImportedModel(model);
+
+                    // Manually assign textures to ensure proper rendering in URP
+                    var skinnedRenderer = model.GetComponentInChildren<SkinnedMeshRenderer>();
+                    if (skinnedRenderer != null)
+                    {
+                        Material sourceMat = skinnedRenderer.sharedMaterial;
+                        if (sourceMat != null)
+                        {
+                            string texturePath = "Assets/_Project/Animation/Character_2/Textures/Image_0.jpg";
+                            Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+                            if (texture != null)
+                            {
+                                Material instanceMat = new Material(sourceMat);
+                                instanceMat.mainTexture = texture;
+                                string normalPath = "Assets/_Project/Animation/Character_2/Textures/Image_2.jpg";
+                                Texture2D normalTex = AssetDatabase.LoadAssetAtPath<Texture2D>(normalPath);
+                                if (normalTex != null)
+                                {
+                                    instanceMat.SetTexture("_BumpMap", normalTex);
+                                    instanceMat.EnableKeyword("_NORMALMAP");
+                                }
+                                skinnedRenderer.sharedMaterial = instanceMat;
+                            }
+                        }
+                    }
+
+                    // Automatically apply wood color to any child oar/paddle meshes
+                    var renderers = model.GetComponentsInChildren<Renderer>();
+                    foreach (var r in renderers)
+                    {
+                        if (r.gameObject.name.ToLower().Contains("paddle") || r.gameObject.name.ToLower().Contains("object_22"))
+                        {
+                            ApplyColorMaterial(r, new Color(0.62f, 0.45f, 0.28f)); // Light wood oar
+                        }
+                    }
+
+                    // Setup Animator component
+                    Animator animator = model.GetComponent<Animator>();
+                    if (animator == null)
+                    {
+                        animator = model.AddComponent<Animator>();
+                    }
+                    animator.applyRootMotion = false;
+
+                    string controllerPath = useModel2 
+                        ? "Assets/_Project/Animation/Character_2/Character_2_Controller.controller" 
+                        : "Assets/_Project/Animation/Character_1/Character_1_Controller.controller";
+                    RuntimeAnimatorController controller = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(controllerPath);
+                    if (controller != null)
+                    {
+                        animator.runtimeAnimatorController = controller;
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[RiverMarketSceneBuilder] AnimatorController not found at: {controllerPath}");
+                    }
+
                     return npc;
                 }
             }
@@ -975,6 +1178,114 @@ namespace ChoNoiMienTay.Editor
             head.GetComponent<Collider>().enabled = false;
             hat.GetComponent<Collider>().enabled = false;
             return npc;
+        }
+
+        private static void ConfigureFbxImporters(string folderPath)
+        {
+            if (!Directory.Exists(folderPath)) return;
+            string[] fbxFiles = Directory.GetFiles(folderPath, "*.fbx");
+            foreach (string file in fbxFiles)
+            {
+                string fileName = Path.GetFileNameWithoutExtension(file).ToLower();
+                if (fileName.Contains("walk") || fileName.Contains("paddling") || fileName.Contains("run") || fileName.Contains("move"))
+                {
+                    ModelImporter modelImporter = AssetImporter.GetAtPath(file) as ModelImporter;
+                    if (modelImporter != null)
+                    {
+                        ModelImporterClipAnimation[] clips = modelImporter.clipAnimations;
+                        if (clips == null || clips.Length == 0)
+                        {
+                            clips = modelImporter.defaultClipAnimations;
+                        }
+
+                        if (clips != null && clips.Length > 0)
+                        {
+                            bool modified = false;
+                            for (int i = 0; i < clips.Length; i++)
+                            {
+                                clips[i].loopTime = true;
+                                clips[i].keepOriginalOrientation = true;
+                                clips[i].keepOriginalPositionXZ = true;
+                                clips[i].keepOriginalPositionY = true;
+                                clips[i].lockRootRotation = true;
+                                clips[i].lockRootHeightY = true;
+                                clips[i].lockRootPositionXZ = true;
+                                modified = true;
+                            }
+
+                            if (modified)
+                            {
+                                modelImporter.clipAnimations = clips;
+                                modelImporter.SaveAndReimport();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void ConfigureAnimations()
+        {
+            ConfigureFbxImporters("Assets/_Project/Animation/Character_1");
+            ConfigureFbxImporters("Assets/_Project/Animation/Character_2");
+
+            // Create Animator Controllers
+            CreateFolderAnimatorController("Assets/_Project/Animation/Character_1", "Assets/_Project/Animation/Character_1/Character_1_Controller.controller");
+            CreateFolderAnimatorController("Assets/_Project/Animation/Character_2", "Assets/_Project/Animation/Character_2/Character_2_Controller.controller");
+            CreateBoatAnimatorController(PaddlingBoatControllerPath, PaddlingBoatModelPath);
+
+            AssetDatabase.Refresh();
+        }
+
+        private static void CreateFolderAnimatorController(string folderPath, string savePath)
+        {
+            if (!Directory.Exists(folderPath)) return;
+
+            // Delete old controller to avoid duplication/issues
+            if (File.Exists(savePath))
+            {
+                AssetDatabase.DeleteAsset(savePath);
+            }
+
+            var controller = AnimatorController.CreateAnimatorControllerAtPath(savePath);
+            var stateMachine = controller.layers[0].stateMachine;
+
+            string[] fbxFiles = Directory.GetFiles(folderPath, "*.fbx");
+            foreach (string file in fbxFiles)
+            {
+                AnimationClip clip = GetAnimationClipFromFBX(file);
+                if (clip != null)
+                {
+                    string stateName = Path.GetFileNameWithoutExtension(file);
+                    if (stateName.ToLower() == "user") continue; // Skip the user model file itself
+
+                    var state = stateMachine.AddState(stateName);
+                    state.motion = clip;
+
+                    if (stateName.ToLower() == "paddling")
+                    {
+                        state.speed = 2.0f; // Speed up paddling animation to match oar frequency
+                    }
+
+                    if (stateName.ToLower().Contains("neutral idle") || stateName.ToLower().Contains("idle"))
+                    {
+                        stateMachine.defaultState = state;
+                    }
+                }
+            }
+        }
+
+        private static AnimationClip GetAnimationClipFromFBX(string path)
+        {
+            Object[] assets = AssetDatabase.LoadAllAssetsAtPath(path);
+            foreach (Object asset in assets)
+            {
+                if (asset is AnimationClip clip && !clip.name.StartsWith("__preview__"))
+                {
+                    return clip;
+                }
+            }
+            return null;
         }
 
         private static Transform CreateMarker(Transform parent, string name, Vector3 localPosition, Quaternion localRotation)
@@ -991,6 +1302,41 @@ namespace ChoNoiMienTay.Editor
             Collider[] colliders = root.GetComponentsInChildren<Collider>(true);
             foreach (Collider collider in colliders)
                 collider.enabled = false;
+        }
+
+        private static void CleanImportedModel(GameObject model)
+        {
+            if (model == null) return;
+
+            // Unpack prefab instance to allow structural changes (deleting child game objects)
+            if (PrefabUtility.IsPartOfPrefabInstance(model))
+            {
+                PrefabUtility.UnpackPrefabInstance(model, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+            }
+
+            // Find and destroy all cameras in the imported model
+            Camera[] cameras = model.GetComponentsInChildren<Camera>(true);
+            foreach (var cam in cameras)
+            {
+                if (cam.gameObject != Camera.main?.gameObject)
+                {
+                    Object.DestroyImmediate(cam.gameObject);
+                }
+            }
+
+            // Find and destroy all lights in the imported model
+            Light[] lights = model.GetComponentsInChildren<Light>(true);
+            foreach (var light in lights)
+            {
+                Object.DestroyImmediate(light.gameObject);
+            }
+
+            // Find and destroy all AudioListeners in the imported model
+            AudioListener[] listeners = model.GetComponentsInChildren<AudioListener>(true);
+            foreach (var listener in listeners)
+            {
+                Object.DestroyImmediate(listener);
+            }
         }
 
         private static void AddTradeTarget(GameObject npcRoot, string displayName, float radius)
@@ -1047,6 +1393,110 @@ namespace ChoNoiMienTay.Editor
         {
             var field = target.GetType().GetField(fieldName, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             field?.SetValue(target, value);
+        }
+
+        private static void ApplyBoatMaterials(GameObject boatInstance)
+        {
+            if (boatInstance == null) return;
+            
+            var renderers = boatInstance.GetComponentsInChildren<Renderer>();
+            foreach (var r in renderers)
+            {
+                Material[] materials = r.sharedMaterials;
+                for (int i = 0; i < materials.Length; i++)
+                {
+                    if (materials[i] == null) continue;
+                    
+                    Material mat = new Material(materials[i]);
+                    string matName = materials[i].name.ToLower();
+                    
+                    if (matName.Contains("paddle"))
+                    {
+                        mat.color = new Color(0.62f, 0.45f, 0.28f); // Light wood oar
+                    }
+                    else if (matName.Contains("metal"))
+                    {
+                        mat.color = new Color(0.3f, 0.3f, 0.3f); // Metal ring
+                        mat.SetFloat("_Metallic", 0.8f);
+                        mat.SetFloat("_Smoothness", 0.6f);
+                    }
+                    else if (matName.Contains("rail"))
+                    {
+                        mat.color = new Color(0.28f, 0.16f, 0.08f); // Dark wood trim
+                    }
+                    else
+                    {
+                        mat.color = new Color(0.48f, 0.31f, 0.18f); // Standard wood hull
+                    }
+                    
+                    materials[i] = mat;
+                }
+                r.sharedMaterials = materials;
+            }
+        }
+
+        private static void CreateBoatAnimatorController(string savePath, string fbxPath)
+        {
+            if (File.Exists(savePath))
+            {
+                AssetDatabase.DeleteAsset(savePath);
+            }
+
+            var controller = UnityEditor.Animations.AnimatorController.CreateAnimatorControllerAtPath(savePath);
+            
+            AnimationClip leftClip = null;
+            AnimationClip rightClip = null;
+            AnimationClip trackedClip = null;
+
+            var subAssets = AssetDatabase.LoadAllAssetsAtPath(fbxPath);
+            foreach (var sub in subAssets)
+            {
+                if (sub is AnimationClip)
+                {
+                    if (sub.name == "Bone.001_9|row_forward") leftClip = sub as AnimationClip;
+                    else if (sub.name == "Bone.002_11|row_forward") rightClip = sub as AnimationClip;
+                    else if (sub.name == "tracked_5|row_forward") trackedClip = sub as AnimationClip;
+                }
+            }
+
+            if (leftClip == null || rightClip == null || trackedClip == null)
+            {
+                Debug.LogWarning("[RiverMarketSceneBuilder] Failed to find some row_forward clips in boat FBX.");
+                return;
+            }
+
+            // Layer 0: Left Paddle
+            controller.layers[0].name = "LeftPaddle";
+            var leftSM = controller.layers[0].stateMachine;
+            var leftState = leftSM.AddState("RowLeft");
+            leftState.motion = leftClip;
+            leftState.speed = 0.68f; // Slow down oar animation to match character paddling cycle (3.6s total)
+            leftSM.defaultState = leftState;
+
+            // Layer 1: Right Paddle
+            controller.AddLayer("RightPaddle");
+            var layers = controller.layers;
+            layers[1].defaultWeight = 1f;
+            var rightSM = layers[1].stateMachine;
+            var rightState = rightSM.AddState("RowRight");
+            rightState.motion = rightClip;
+            rightState.speed = 0.68f; // Slow down oar animation to match character paddling cycle (3.6s total)
+            rightSM.defaultState = rightState;
+
+            // Layer 2: Tracked
+            controller.AddLayer("Tracked");
+            layers = controller.layers;
+            layers[2].defaultWeight = 1f;
+            var trackedSM = layers[2].stateMachine;
+            var trackedState = trackedSM.AddState("RowTracked");
+            trackedState.motion = trackedClip;
+            trackedState.speed = 0.68f; // Slow down oar animation to match character paddling cycle (3.6s total)
+            trackedSM.defaultState = trackedState;
+
+            controller.layers = layers;
+
+            EditorUtility.SetDirty(controller);
+            AssetDatabase.SaveAssets();
         }
     }
 }

@@ -43,6 +43,23 @@ namespace ChoNoiMienTay.UI
         private readonly List<GameObject> npcCards = new List<GameObject>();
 
         private PrototypeScreen currentScreen = PrototypeScreen.Inventory;
+        private bool isHidden = true;
+
+        public bool IsHidden => isHidden;
+
+        public void ToggleVisibility(bool visible)
+        {
+            isHidden = !visible;
+            if (canvas != null)
+            {
+                // Just toggle the background/parent completely
+                canvas.gameObject.SetActive(visible);
+            }
+            if (visible)
+            {
+                RefreshUI();
+            }
+        }
 
         public void Configure(BargainingSystem system, PlayerStats player, InventoryManager inventory)
         {
@@ -94,6 +111,9 @@ namespace ChoNoiMienTay.UI
 
             canvas = canvasObject.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            
+            // Set canvas disabled by default if hidden
+            canvasObject.SetActive(!isHidden);
 
             CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -261,7 +281,9 @@ namespace ChoNoiMienTay.UI
             UpdateInventoryTexts();
             UpdateShopTexts();
             UpdateBargainTexts();
-            ShowScreen(currentScreen);
+            
+            if (!isHidden)
+                ShowScreen(currentScreen);
         }
 
         private void RebuildInventoryButtons()
@@ -440,6 +462,15 @@ namespace ChoNoiMienTay.UI
             }
 
             currentScreen = screen;
+            
+            if (isHidden)
+            {
+                inventoryScreen.SetActive(false);
+                shopScreen.SetActive(false);
+                bargainScreen.SetActive(false);
+                return;
+            }
+
             inventoryScreen.SetActive(screen == PrototypeScreen.Inventory);
             shopScreen.SetActive(screen == PrototypeScreen.Shop);
             bargainScreen.SetActive(screen == PrototypeScreen.Bargain);
@@ -479,7 +510,7 @@ namespace ChoNoiMienTay.UI
             button.gameObject.AddComponent<LayoutElement>().preferredHeight = 56f;
             button.onClick.AddListener(() =>
             {
-                if (bargainingSystem.StartSession(profile))
+                if (bargainingSystem.StartSession(profile, 1))
                 {
                     ShowScreen(PrototypeScreen.Bargain);
                 }
