@@ -51,6 +51,7 @@ namespace ChoNoiMienTay.UI
         public bool IsNpcTradeOpen => isNpcTradeOpen;
         public bool IsUpgradeOpen => upgradePanel != null && upgradePanel.activeSelf;
         public bool IsNewsOpen => newsPanel != null && newsPanel.activeSelf;
+<<<<<<< HEAD
 
         public void SetCanvasActive(bool active)
         {
@@ -60,6 +61,8 @@ namespace ChoNoiMienTay.UI
                 canvas.gameObject.SetActive(active);
             }
         }
+=======
+>>>>>>> origin/Animation
 
         public void Configure(
             TimeManager timeSource,
@@ -174,6 +177,7 @@ namespace ChoNoiMienTay.UI
             upgradeText = CreateText("UpgradeText", upgradePanel.transform, 22, TextAnchor.UpperLeft);
             Stretch(upgradeText.rectTransform, new Vector2(0.08f, 0.55f), new Vector2(0.92f, 0.82f));
 
+<<<<<<< HEAD
             CreateActionButton(upgradePanel.transform, "Khoang Chứa", new Vector2(0.08f, 0.45f), new Vector2(0.92f, 0.53f), () =>
             {
                 if (boatCampManager != null && boatCampManager.TryBuyNextStorageUpgrade()) RefreshAll();
@@ -191,6 +195,25 @@ namespace ChoNoiMienTay.UI
                 if (boatCampManager != null && boatCampManager.TryBuyNextBambooPoleUpgrade()) RefreshAll();
             });
             CreateActionButton(upgradePanel.transform, "Đóng", new Vector2(0.08f, 0.05f), new Vector2(0.92f, 0.13f), CloseAllPanels);
+=======
+            CreateActionButton(upgradePanel.transform, "Khoang Chua", new Vector2(0.08f, 0.45f), new Vector2(0.92f, 0.53f), () =>
+            {
+                if (boatCampManager != null && boatCampManager.TryBuyNextStorageUpgrade()) RefreshAll();
+            });
+            CreateActionButton(upgradePanel.transform, "Dong Co", new Vector2(0.08f, 0.35f), new Vector2(0.92f, 0.43f), () =>
+            {
+                if (boatCampManager != null && boatCampManager.TryBuyNextEngineUpgrade()) RefreshAll();
+            });
+            CreateActionButton(upgradePanel.transform, "Lop Mai", new Vector2(0.08f, 0.25f), new Vector2(0.92f, 0.33f), () =>
+            {
+                if (boatCampManager != null && boatCampManager.TryBuyRoofUpgrade()) RefreshAll();
+            });
+            CreateActionButton(upgradePanel.transform, "Cay Beo", new Vector2(0.08f, 0.15f), new Vector2(0.92f, 0.23f), () =>
+            {
+                if (boatCampManager != null && boatCampManager.TryBuyNextBambooPoleUpgrade()) RefreshAll();
+            });
+            CreateActionButton(upgradePanel.transform, "Dong", new Vector2(0.08f, 0.05f), new Vector2(0.92f, 0.13f), CloseAllPanels);
+>>>>>>> origin/Animation
 
             tradePanel = CreatePanel("TradePanel", canvasObject.transform, new Color(0.12f, 0.12f, 0.08f, 0.88f));
             Stretch(tradePanel.GetComponent<RectTransform>(), new Vector2(0.31f, 0.08f), new Vector2(0.69f, 0.44f));
@@ -332,8 +355,11 @@ namespace ChoNoiMienTay.UI
         {
             if (statsText == null || timeText == null) return;
 
+<<<<<<< HEAD
             bool isEn = FullSimulatorUI.CurrentLanguage == "en";
 
+=======
+>>>>>>> origin/Animation
             string money = playerStats != null ? playerStats.CurrentMoney.ToString("N0") : "0";
             string stamina = playerStats != null ? $"{playerStats.CurrentStamina:0}/{playerStats.MaxStamina:0}" : "0/0";
             string durability = durabilityManager != null ? $"{durabilityManager.CurrentDurability:0}/{durabilityManager.MaxDurability:0}" : "0/0";
@@ -341,6 +367,7 @@ namespace ChoNoiMienTay.UI
             float weight = inventoryManager != null ? inventoryManager.CurrentTotalWeight : 0f;
             float maxWeight = inventoryManager != null ? inventoryManager.MaxWeightCapacity : 100f;
 
+<<<<<<< HEAD
             string phaseName = isEn ? "Dawn" : "Bình Minh";
             if (timeManager != null)
             {
@@ -414,6 +441,12 @@ namespace ChoNoiMienTay.UI
                     btn.transform.Find("Label").GetComponent<Text>().text = isEn ? "Sleep Till Dawn" : "Ngủ Đến Sáng";
                 }
             }
+=======
+            string dayPhase = timeManager != null ? $"Ngay {timeManager.CurrentDay} | {timeManager.CurrentPhase}" : "Ngay 1 | Dawn";
+
+            statsText.text = $"Tien: {money} | The luc: {stamina} | Tai trong: {weight:0}/{maxWeight:0} kg | Do ben: {durability}";
+            timeText.text = $"{dayPhase}";
+>>>>>>> origin/Animation
         }
 
         private void RefreshUpgrades()

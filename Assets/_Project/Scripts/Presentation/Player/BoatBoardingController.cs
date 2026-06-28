@@ -148,6 +148,7 @@ namespace ChoNoi.Presentation.Player
 
             if (cc != null)
                 cc.enabled = true;
+<<<<<<< HEAD
         }
         public void ResetToStartingState(Vector3 playerStartPos, Quaternion playerStartRot, Vector3 boatStartPos, Quaternion boatStartRot)
         {
@@ -188,6 +189,8 @@ namespace ChoNoi.Presentation.Player
 
             if (cc != null)
                 cc.enabled = true;
+=======
+>>>>>>> origin/Animation
         }
 
         private void SetBoatControl(bool enabled)

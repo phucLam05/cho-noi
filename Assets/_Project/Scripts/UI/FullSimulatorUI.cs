@@ -24,18 +24,23 @@ namespace ChoNoi.UI
         public RiverMarketHUD riverMarketHUD;
         public PlayerStats playerStats;
         public BoatCampManager boatCampManager;
+<<<<<<< HEAD
 
         [Header("Casual GUI Sprites")]
         public Sprite panelBgSprite;
         public Sprite buttonSpriteNormal;
         public Sprite buttonSpriteHover;
         public Sprite buttonSpritePressed;
+=======
+        public BoatBoardingController boatBoardingController;
+>>>>>>> origin/Animation
 
         private GameObject canvasObject;
         private GameObject tutorialPanel;
         private GameObject marketingPanel;
         private GameObject dialoguePanel;
         private GameObject settingsPanel;
+<<<<<<< HEAD
         private GameObject pausePanel;
         private GameObject splashPanel;
         private GameObject homePanel;
@@ -55,6 +60,8 @@ namespace ChoNoi.UI
         private Text volumeLabelText;
         private Button graphicsSettingButton;
         private Button languageSettingButton;
+=======
+>>>>>>> origin/Animation
 
         private Text marketingText;
         private Text dialogueText;
@@ -149,12 +156,15 @@ namespace ChoNoi.UI
         private readonly List<GameObject> createdUIElements = new List<GameObject>();
 
         public bool IsDialogueOpen => dialoguePanel != null && dialoguePanel.activeSelf;
+<<<<<<< HEAD
         public bool IsMarketingOpen => marketingPanel != null && marketingPanel.activeSelf;
         public bool IsPauseOpen => pausePanel != null && pausePanel.activeSelf;
         public bool IsSettingsOpen => settingsPanel != null && settingsPanel.activeSelf;
         public bool IsTutorialOpen => tutorialPanel != null && tutorialPanel.activeSelf;
         public bool IsYardOpen => boatYardPanel != null && boatYardPanel.activeSelf;
         public bool IsTradeQtyOpen => tradeQuantityPanel != null && tradeQuantityPanel.activeSelf;
+=======
+>>>>>>> origin/Animation
 
         private void Start()
         {
@@ -174,6 +184,11 @@ namespace ChoNoi.UI
                 playerStats = FindAnyObjectByType<PlayerStats>();
             if (boatCampManager == null)
                 boatCampManager = FindAnyObjectByType<BoatCampManager>();
+<<<<<<< HEAD
+=======
+            if (boatBoardingController == null)
+                boatBoardingController = FindAnyObjectByType<BoatBoardingController>();
+>>>>>>> origin/Animation
 
             var timeManager = FindAnyObjectByType<TimeManager>();
             if (timeManager != null)
@@ -182,6 +197,7 @@ namespace ChoNoi.UI
             }
 
             BuildExtraUI();
+<<<<<<< HEAD
 
             var playerController = FindAnyObjectByType<ShorePlayerController>();
             if (playerController != null)
@@ -192,13 +208,19 @@ namespace ChoNoi.UI
             {
                 boarding.SetBoatControlActive(false);
             }
+=======
+>>>>>>> origin/Animation
         }
 
         private void Update()
         {
             // Detect if player is boarded
+<<<<<<< HEAD
             var boarding = FindAnyObjectByType<BoatBoardingController>();
             bool isBoarded = boarding != null && boarding.IsBoarded;
+=======
+            bool isBoarded = boatBoardingController != null && boatBoardingController.IsBoarded;
+>>>>>>> origin/Animation
 
             // B key to toggle marketing panel, only available when boarded on the boat and dialogue is closed
             if (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.bKey.wasPressedThisFrame)
@@ -209,13 +231,18 @@ namespace ChoNoi.UI
                 }
             }
 
+<<<<<<< HEAD
             // Escape key closes dialogue, panels, or pauses/resumes the game
+=======
+            // Escape key closes dialogue or marketing
+>>>>>>> origin/Animation
             if (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.escapeKey.wasPressedThisFrame)
             {
                 if (marketingPanel != null && marketingPanel.activeSelf)
                 {
                     CloseMarketingPanel();
                 }
+<<<<<<< HEAD
                 else if (tutorialPanel != null && tutorialPanel.activeSelf)
                 {
                     tutorialPanel.SetActive(false);
@@ -237,6 +264,8 @@ namespace ChoNoi.UI
                 {
                     TogglePause();
                 }
+=======
+>>>>>>> origin/Animation
             }
 
             UpdateSidePrompts(isBoarded);
@@ -264,8 +293,13 @@ namespace ChoNoi.UI
             EnsureEventSystem();
 
             // Top right buttons for new features
+<<<<<<< HEAD
             topTutorialButton = CreateActionButton(canvasObject.transform, "Hướng Dẫn", new Vector2(0.66f, 0.90f), new Vector2(0.73f, 0.96f), ToggleTutorial);
             topSettingsButton = CreateActionButton(canvasObject.transform, "Cài Đặt", new Vector2(0.58f, 0.90f), new Vector2(0.65f, 0.96f), ToggleSettings);
+=======
+            CreateActionButton(canvasObject.transform, "Huong Dan", new Vector2(0.66f, 0.90f), new Vector2(0.73f, 0.96f), ToggleTutorial);
+            CreateActionButton(canvasObject.transform, "Cai Dat", new Vector2(0.58f, 0.90f), new Vector2(0.65f, 0.96f), ToggleSettings);
+>>>>>>> origin/Animation
 
             // Left & Right Prompts Panel (Middle-sides)
             leftPromptPanel = CreatePanel("LeftPromptPanel", canvasObject.transform, new Color(0.08f, 0.08f, 0.08f, 0.85f));
@@ -283,6 +317,7 @@ namespace ChoNoi.UI
             // Tutorial Panel
             tutorialPanel = CreatePanel("TutorialPanel", canvasObject.transform, new Color(0.1f, 0.1f, 0.1f, 0.95f));
             Stretch(tutorialPanel.GetComponent<RectTransform>(), new Vector2(0.2f, 0.2f), new Vector2(0.8f, 0.8f));
+<<<<<<< HEAD
             CreateText("Title", tutorialPanel.transform, 32, TextAnchor.MiddleCenter).text = "HƯỚNG DẪN CHƠI";
             Stretch(tutorialPanel.transform.Find("Title").GetComponent<RectTransform>(), new Vector2(0.05f, 0.85f), new Vector2(0.95f, 0.95f));
             Text tutText = CreateText("Body", tutorialPanel.transform, 24, TextAnchor.UpperLeft);
@@ -329,22 +364,58 @@ namespace ChoNoi.UI
             CreateActionButton(pausePanel.transform, "Thoát Game", new Vector2(0.2f, 0.14f), new Vector2(0.8f, 0.26f), QuitGame);
             pausePanel.SetActive(false);
 
+=======
+            CreateText("Title", tutorialPanel.transform, 32, TextAnchor.MiddleCenter).text = "HUONG DAN CHOI";
+            Stretch(tutorialPanel.transform.Find("Title").GetComponent<RectTransform>(), new Vector2(0.05f, 0.85f), new Vector2(0.95f, 0.95f));
+            Text tutText = CreateText("Body", tutorialPanel.transform, 24, TextAnchor.UpperLeft);
+            tutText.text = "1. Binh Minh (3AM - 10AM): Lai ghe ra cho, treo hang len Cay Beo de ban.\n\n" +
+                           "2. Tra Gia: Su dung the luc de Noi Ngot hoac Ton hang de Tang Qua.\n\n" +
+                           "3. Chieu Ta (1PM - 6PM): Vao rach nho thu mua nong san hoac ve Trai Ghe de bao tri.\n\n" +
+                           "4. Nang Cap: Mo rong khoang chua, nang cap dong co de ghe chay nhanh hon.";
+            Stretch(tutText.rectTransform, new Vector2(0.05f, 0.15f), new Vector2(0.95f, 0.80f));
+            CreateActionButton(tutorialPanel.transform, "Dong", new Vector2(0.4f, 0.05f), new Vector2(0.6f, 0.12f), ToggleTutorial);
+            tutorialPanel.SetActive(false);
+
+            // Settings Panel
+            settingsPanel = CreatePanel("SettingsPanel", canvasObject.transform, new Color(0.1f, 0.1f, 0.2f, 0.95f));
+            Stretch(settingsPanel.GetComponent<RectTransform>(), new Vector2(0.3f, 0.3f), new Vector2(0.7f, 0.7f));
+            CreateText("Title", settingsPanel.transform, 32, TextAnchor.MiddleCenter).text = "CAI DAT";
+            Stretch(settingsPanel.transform.Find("Title").GetComponent<RectTransform>(), new Vector2(0.05f, 0.80f), new Vector2(0.95f, 0.95f));
+            CreateActionButton(settingsPanel.transform, "Am Thanh: ON", new Vector2(0.2f, 0.5f), new Vector2(0.8f, 0.65f), () => {});
+            CreateActionButton(settingsPanel.transform, "Do Hoa: CAO", new Vector2(0.2f, 0.3f), new Vector2(0.8f, 0.45f), () => {});
+            CreateActionButton(settingsPanel.transform, "Dong", new Vector2(0.4f, 0.05f), new Vector2(0.6f, 0.2f), ToggleSettings);
+            settingsPanel.SetActive(false);
+
+>>>>>>> origin/Animation
             // Marketing Panel (Cargo & Cay Beo) - Stretched side-by-side drag and drop UI with tabs
             marketingPanel = CreatePanel("MarketingPanel", canvasObject.transform, new Color(0.12f, 0.18f, 0.14f, 0.96f));
             Stretch(marketingPanel.GetComponent<RectTransform>(), new Vector2(0.15f, 0.15f), new Vector2(0.85f, 0.85f));
             
+<<<<<<< HEAD
             CreateText("Title", marketingPanel.transform, 28, TextAnchor.MiddleCenter).text = "QUẢN LÝ KHOANG THUYỀN & CÂY BẸO";
             Stretch(marketingPanel.transform.Find("Title").GetComponent<RectTransform>(), new Vector2(0.05f, 0.90f), new Vector2(0.95f, 0.98f));
 
             // Create Tab Buttons at the top (below title)
             tabButton1 = CreateActionButton(marketingPanel.transform, "KHOANG THUYỀN", new Vector2(0.20f, 0.81f), new Vector2(0.48f, 0.88f), () => SetCargoTab(0));
             tabButton2 = CreateActionButton(marketingPanel.transform, "CÂY BẸO", new Vector2(0.52f, 0.81f), new Vector2(0.80f, 0.88f), () => SetCargoTab(1));
+=======
+            CreateText("Title", marketingPanel.transform, 28, TextAnchor.MiddleCenter).text = "QUAN LY KHOANG THUYEN & CAY BEO";
+            Stretch(marketingPanel.transform.Find("Title").GetComponent<RectTransform>(), new Vector2(0.05f, 0.90f), new Vector2(0.95f, 0.98f));
+
+            // Create Tab Buttons at the top (below title)
+            tabButton1 = CreateActionButton(marketingPanel.transform, "KHOANG THUYEN", new Vector2(0.20f, 0.81f), new Vector2(0.48f, 0.88f), () => SetCargoTab(0));
+            tabButton2 = CreateActionButton(marketingPanel.transform, "CAY BEO", new Vector2(0.52f, 0.81f), new Vector2(0.80f, 0.88f), () => SetCargoTab(1));
+>>>>>>> origin/Animation
 
             // 1. Khoang Thuyen Tab Content
             khoangThuyenTabContent = CreatePanel("KhoangThuyenTabContent", marketingPanel.transform, new Color(0.08f, 0.10f, 0.12f, 0.9f));
             Stretch(khoangThuyenTabContent.GetComponent<RectTransform>(), new Vector2(0.04f, 0.12f), new Vector2(0.96f, 0.80f));
 
+<<<<<<< HEAD
             CreateText("CargoHeader", khoangThuyenTabContent.transform, 22, TextAnchor.MiddleCenter).text = "DANH SÁCH NÔNG SẢN TRONG KHOANG GHE";
+=======
+            CreateText("CargoHeader", khoangThuyenTabContent.transform, 22, TextAnchor.MiddleCenter).text = "DANH SACH NONG SAN TRONG KHOANG GHE";
+>>>>>>> origin/Animation
             Stretch(khoangThuyenTabContent.transform.Find("CargoHeader").GetComponent<RectTransform>(), new Vector2(0.05f, 0.88f), new Vector2(0.95f, 0.96f));
 
             khoangThuyenListParent = new GameObject("CargoListGrid", typeof(RectTransform), typeof(GridLayoutGroup));
@@ -363,7 +434,11 @@ namespace ChoNoi.UI
             // Left panel for Inventory items
             GameObject invPanel = CreatePanel("InventoryPanel", cayBeoTabContent.transform, new Color(0.08f, 0.12f, 0.10f, 0.9f));
             Stretch(invPanel.GetComponent<RectTransform>(), new Vector2(0.04f, 0.12f), new Vector2(0.46f, 0.80f));
+<<<<<<< HEAD
             CreateText("InvHeader", invPanel.transform, 22, TextAnchor.MiddleCenter).text = "KHO HÀNG TRÊN GHE (Kéo thả hoặc Click chọn)";
+=======
+            CreateText("InvHeader", invPanel.transform, 22, TextAnchor.MiddleCenter).text = "KHO HANG TREN GHE (Keo tha hoac Click chon)";
+>>>>>>> origin/Animation
             Stretch(invPanel.transform.Find("InvHeader").GetComponent<RectTransform>(), new Vector2(0.05f, 0.88f), new Vector2(0.95f, 0.96f));
             
             inventoryGridParent = new GameObject("InventoryGrid", typeof(RectTransform), typeof(GridLayoutGroup));
@@ -378,7 +453,11 @@ namespace ChoNoi.UI
             // Right panel for Cây Bẹo Slots
             GameObject polePanel = CreatePanel("PolePanel", cayBeoTabContent.transform, new Color(0.18f, 0.15f, 0.10f, 0.9f));
             Stretch(polePanel.GetComponent<RectTransform>(), new Vector2(0.54f, 0.12f), new Vector2(0.96f, 0.80f));
+<<<<<<< HEAD
             CreateText("PoleHeader", polePanel.transform, 22, TextAnchor.MiddleCenter).text = "CÂY BẸO (CÁC MẶT HÀNG ĐANG TREO)";
+=======
+            CreateText("PoleHeader", polePanel.transform, 22, TextAnchor.MiddleCenter).text = "CAY BEO (CAC MAT HANG DANG TREO)";
+>>>>>>> origin/Animation
             Stretch(polePanel.transform.Find("PoleHeader").GetComponent<RectTransform>(), new Vector2(0.05f, 0.88f), new Vector2(0.95f, 0.96f));
 
             poleSlotsParent = new GameObject("PoleSlotsGrid", typeof(RectTransform), typeof(VerticalLayoutGroup));
@@ -393,11 +472,19 @@ namespace ChoNoi.UI
 
             // Instructions text at bottom of marketing
             marketingText = CreateText("Instructions", marketingPanel.transform, 18, TextAnchor.MiddleCenter);
+<<<<<<< HEAD
             marketingText.text = "Kéo thả hàng từ Kho sang Cây Bẹo. Click vào ô Cây Bẹo có chữ Gỡ để tháo dỡ.";
             Stretch(marketingText.rectTransform, new Vector2(0.05f, 0.02f), new Vector2(0.6f, 0.10f));
 
             CreateActionButton(marketingPanel.transform, "Gỡ Tất Cả", new Vector2(0.65f, 0.03f), new Vector2(0.78f, 0.09f), ClearPole);
             CreateActionButton(marketingPanel.transform, "Đóng", new Vector2(0.82f, 0.03f), new Vector2(0.95f, 0.09f), CloseMarketingPanel);
+=======
+            marketingText.text = "Keo tha hang tu Kho sang Cay Beo. Click vao o Cay Beo co chu Go de tháo dõ.";
+            Stretch(marketingText.rectTransform, new Vector2(0.05f, 0.02f), new Vector2(0.6f, 0.10f));
+
+            CreateActionButton(marketingPanel.transform, "Go Tat Ca", new Vector2(0.65f, 0.03f), new Vector2(0.78f, 0.09f), ClearPole);
+            CreateActionButton(marketingPanel.transform, "Dong", new Vector2(0.82f, 0.03f), new Vector2(0.95f, 0.09f), CloseMarketingPanel);
+>>>>>>> origin/Animation
             marketingPanel.SetActive(false);
 
             // Dialogue Panel (Visual Novel style at the bottom center)
@@ -437,6 +524,7 @@ namespace ChoNoi.UI
             // Bổ sung các Panel giao dịch phụ
             BuildTradeQuantityPanel(canvasObject.transform);
             BuildBoatYardPanel(canvasObject.transform);
+<<<<<<< HEAD
 
             BuildSplashAndHome(canvasObject.transform);
         }
@@ -523,6 +611,12 @@ namespace ChoNoi.UI
             UnityEngine.Application.Quit();
 #endif
         }
+=======
+        }
+
+        private void ToggleTutorial() => tutorialPanel.SetActive(!tutorialPanel.activeSelf);
+        private void ToggleSettings() => settingsPanel.SetActive(!settingsPanel.activeSelf);
+>>>>>>> origin/Animation
 
         private void SetCargoTab(int tab)
         {
@@ -535,10 +629,22 @@ namespace ChoNoi.UI
             if (marketingPanel == null) return;
             marketingPanel.SetActive(!marketingPanel.activeSelf);
             
+<<<<<<< HEAD
+=======
+            var boarding = FindAnyObjectByType<BoatBoardingController>();
+>>>>>>> origin/Animation
             if (marketingPanel.activeSelf)
             {
                 activeCargoTab = 0;
                 RefreshMarketing();
+<<<<<<< HEAD
+=======
+                Cursor.visible = true;
+                Cursor.lockState = CursorLockMode.None;
+
+                if (boarding != null && boarding.IsBoarded)
+                    boarding.SetBoatControlActive(false);
+>>>>>>> origin/Animation
             }
             else
             {
@@ -547,8 +653,14 @@ namespace ChoNoi.UI
                     Destroy(activeDragObject);
                     activeDragObject = null;
                 }
+<<<<<<< HEAD
             }
             UpdateCursorState();
+=======
+                if (boarding != null && boarding.IsBoarded)
+                    boarding.SetBoatControlActive(true);
+            }
+>>>>>>> origin/Animation
         }
 
         public void OpenMarketingPanel()
@@ -584,10 +696,17 @@ namespace ChoNoi.UI
 
             if (tabButton1 != null && tabButton2 != null)
             {
+<<<<<<< HEAD
                 tabButton1.GetComponent<Graphic>().color = activeCargoTab == 0 ? new Color(0.86f, 0.73f, 0.46f, 1f) : new Color(0.2f, 0.4f, 0.6f, 1f);
                 tabButton1.transform.Find("Label").GetComponent<Text>().color = activeCargoTab == 0 ? Color.black : Color.white;
 
                 tabButton2.GetComponent<Graphic>().color = activeCargoTab == 1 ? new Color(0.86f, 0.73f, 0.46f, 1f) : new Color(0.2f, 0.4f, 0.6f, 1f);
+=======
+                tabButton1.GetComponent<Image>().color = activeCargoTab == 0 ? new Color(0.86f, 0.73f, 0.46f, 1f) : new Color(0.2f, 0.4f, 0.6f, 1f);
+                tabButton1.transform.Find("Label").GetComponent<Text>().color = activeCargoTab == 0 ? Color.black : Color.white;
+
+                tabButton2.GetComponent<Image>().color = activeCargoTab == 1 ? new Color(0.86f, 0.73f, 0.46f, 1f) : new Color(0.2f, 0.4f, 0.6f, 1f);
+>>>>>>> origin/Animation
                 tabButton2.transform.Find("Label").GetComponent<Text>().color = activeCargoTab == 1 ? Color.black : Color.white;
             }
 
@@ -635,7 +754,11 @@ namespace ChoNoi.UI
 
                     if (selectedCargoSlotIndex == index)
                     {
+<<<<<<< HEAD
                         slotObj.GetComponent<Graphic>().color = new Color(0.88f, 0.71f, 0.34f, 1f);
+=======
+                        slotObj.GetComponent<Image>().color = new Color(0.88f, 0.71f, 0.34f, 1f);
+>>>>>>> origin/Animation
                     }
 
                     Text text = CreateText("Label", slotObj.transform, 16, TextAnchor.MiddleCenter);
@@ -679,7 +802,11 @@ namespace ChoNoi.UI
 
                     if (selectedCargoSlotIndex == index)
                     {
+<<<<<<< HEAD
                         slotObj.GetComponent<Graphic>().color = new Color(0.88f, 0.71f, 0.34f, 1f);
+=======
+                        slotObj.GetComponent<Image>().color = new Color(0.88f, 0.71f, 0.34f, 1f);
+>>>>>>> origin/Animation
                     }
 
                     Text text = CreateText("Label", slotObj.transform, 14, TextAnchor.MiddleCenter);
@@ -883,7 +1010,10 @@ namespace ChoNoi.UI
             
             // Clean up choice buttons
             ClearChoicePanel();
+<<<<<<< HEAD
             UpdateCursorState();
+=======
+>>>>>>> origin/Animation
         }
 
         private void ClearChoicePanel()
@@ -1448,7 +1578,11 @@ namespace ChoNoi.UI
             if (interactor != null && interactor.CurrentTarget != null)
             {
                 showLeft = true;
+<<<<<<< HEAD
                 leftText = $"[E] Tương tác:\n{interactor.CurrentTarget.NpcDisplayName}";
+=======
+                leftText = $"[E] Tuong tac:\n{interactor.CurrentTarget.NpcDisplayName}";
+>>>>>>> origin/Animation
             }
             else if (boarding != null)
             {
@@ -1457,7 +1591,11 @@ namespace ChoNoi.UI
                     if (boarding.CanDismountBoat)
                     {
                         showLeft = true;
+<<<<<<< HEAD
                         leftText = "[E] Rời ghe\n(Đến điểm bờ)";
+=======
+                        leftText = "[E] Roi ghe\n(Den diem bo)";
+>>>>>>> origin/Animation
                     }
                 }
                 else
@@ -1465,7 +1603,11 @@ namespace ChoNoi.UI
                     if (boarding.CanBoardBoat)
                     {
                         showLeft = true;
+<<<<<<< HEAD
                         leftText = "[E] Lên ghe";
+=======
+                        leftText = "[E] Len ghe";
+>>>>>>> origin/Animation
                     }
                 }
             }
@@ -1486,7 +1628,12 @@ namespace ChoNoi.UI
                 rightPromptPanel.SetActive(showRight);
                 if (showRight && rightPromptText != null)
                 {
+<<<<<<< HEAD
                     rightPromptText.text = "[B] Điều chỉnh\nCây Bẹo";
+=======
+                    rightPromptText.text = "[B] Lieu dinh\nCay Beo"; // wait, the prompt text says "Dieu chinh", let's make sure it's correct
+                    rightPromptText.text = "[B] Dieu chinh\nCay Beo";
+>>>>>>> origin/Animation
                 }
             }
         }
@@ -1503,6 +1650,7 @@ namespace ChoNoi.UI
 
         private GameObject CreatePanel(string name, Transform parent, Color color)
         {
+<<<<<<< HEAD
             bool useSVG = (name != "LeftPromptPanel" && name != "RightPromptPanel" && 
                            name != "Background" && name != "Fill" && name != "Bg" && 
                            !name.Contains("Slider") && !name.Contains("Scroll") && !name.Contains("Logo"));
@@ -1525,6 +1673,11 @@ namespace ChoNoi.UI
                 panel.GetComponent<Image>().color = color;
             }
 
+=======
+            GameObject panel = new GameObject(name, typeof(RectTransform), typeof(Image));
+            panel.transform.SetParent(parent, false);
+            panel.GetComponent<Image>().color = color;
+>>>>>>> origin/Animation
             return panel;
         }
 
@@ -1533,7 +1686,11 @@ namespace ChoNoi.UI
             GameObject textObject = new GameObject(name, typeof(RectTransform), typeof(Text));
             textObject.transform.SetParent(parent, false);
             Text text = textObject.GetComponent<Text>();
+<<<<<<< HEAD
             text.font = FontHelper.GameFont;
+=======
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+>>>>>>> origin/Animation
             text.fontSize = fontSize;
             text.alignment = alignment;
             text.color = Color.white;
@@ -1553,6 +1710,7 @@ namespace ChoNoi.UI
 
         private Button CreateActionButton(Transform parent, string label, Vector2 anchorMin, Vector2 anchorMax, UnityEngine.Events.UnityAction onClick)
         {
+<<<<<<< HEAD
             GameObject buttonObject;
             if (buttonSpriteNormal != null)
             {
@@ -1614,6 +1772,19 @@ namespace ChoNoi.UI
             trigger.triggers.Add(entry);
 
             return btnComp;
+=======
+            GameObject buttonObject = new GameObject(label, typeof(RectTransform), typeof(Image), typeof(Button));
+            buttonObject.transform.SetParent(parent, false);
+            Stretch(buttonObject.GetComponent<RectTransform>(), anchorMin, anchorMax);
+            buttonObject.GetComponent<Image>().color = new Color(0.2f, 0.4f, 0.6f, 1f);
+            Button button = buttonObject.GetComponent<Button>();
+            button.onClick.AddListener(onClick);
+
+            Text text = CreateText("Label", buttonObject.transform, 20, TextAnchor.MiddleCenter);
+            text.text = label;
+            Stretch(text.rectTransform, Vector2.zero, Vector2.one);
+            return button;
+>>>>>>> origin/Animation
         }
 
         private void Stretch(RectTransform rectTransform, Vector2 anchorMin, Vector2 anchorMax)
@@ -1652,7 +1823,11 @@ namespace ChoNoi.UI
             ph.transform.SetParent(inputObj.transform, false);
             Text phText = ph.GetComponent<Text>();
             phText.text = "Nhập...";
+<<<<<<< HEAD
             phText.font = FontHelper.GameFont;
+=======
+            phText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+>>>>>>> origin/Animation
             phText.fontSize = 18;
             phText.alignment = TextAnchor.MiddleCenter;
             phText.color = Color.gray;
@@ -1661,7 +1836,11 @@ namespace ChoNoi.UI
             GameObject txtObj = new GameObject("Text", typeof(RectTransform), typeof(Text));
             txtObj.transform.SetParent(inputObj.transform, false);
             Text valText = txtObj.GetComponent<Text>();
+<<<<<<< HEAD
             valText.font = FontHelper.GameFont;
+=======
+            valText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+>>>>>>> origin/Animation
             valText.fontSize = 20;
             valText.alignment = TextAnchor.MiddleCenter;
             valText.color = Color.white;
@@ -1696,10 +1875,17 @@ namespace ChoNoi.UI
             Stretch(tradeSummaryText.rectTransform, new Vector2(0.05f, 0.14f), new Vector2(0.95f, 0.30f));
 
             tradeConfirmButton = CreateActionButton(tradeQuantityPanel.transform, "XÁC NHẬN", new Vector2(0.15f, 0.04f), new Vector2(0.48f, 0.12f), ConfirmTrade);
+<<<<<<< HEAD
             tradeConfirmButton.GetComponent<Graphic>().color = new Color(0.18f, 0.38f, 0.22f, 1f);
             
             tradeCancelButton = CreateActionButton(tradeQuantityPanel.transform, "HỦY", new Vector2(0.52f, 0.04f), new Vector2(0.85f, 0.12f), CancelTrade);
             tradeCancelButton.GetComponent<Graphic>().color = new Color(0.5f, 0.15f, 0.15f, 1f);
+=======
+            tradeConfirmButton.GetComponent<Image>().color = new Color(0.18f, 0.38f, 0.22f, 1f);
+            
+            tradeCancelButton = CreateActionButton(tradeQuantityPanel.transform, "HỦY", new Vector2(0.52f, 0.04f), new Vector2(0.85f, 0.12f), CancelTrade);
+            tradeCancelButton.GetComponent<Image>().color = new Color(0.5f, 0.15f, 0.15f, 1f);
+>>>>>>> origin/Animation
 
             tradeQuantityPanel.SetActive(false);
         }
@@ -2035,7 +2221,11 @@ namespace ChoNoi.UI
             yardDurabilitySlider.fillRect = dSliderFill.GetComponent<RectTransform>();
 
             yardRepairButton = CreateActionButton(repairPanel.transform, "SỬA CHỮA GHE", new Vector2(0.60f, 0.20f), new Vector2(0.94f, 0.80f), YardRepairBoat);
+<<<<<<< HEAD
             yardRepairButton.GetComponent<Graphic>().color = new Color(0.18f, 0.38f, 0.22f, 1f);
+=======
+            yardRepairButton.GetComponent<Image>().color = new Color(0.18f, 0.38f, 0.22f, 1f);
+>>>>>>> origin/Animation
 
             GameObject upgradesSection = CreatePanel("UpgradesSection", boatYardPanel.transform, new Color(0.04f, 0.06f, 0.08f, 0.9f));
             Stretch(upgradesSection.GetComponent<RectTransform>(), new Vector2(0.05f, 0.14f), new Vector2(0.95f, 0.60f));
@@ -2262,6 +2452,7 @@ namespace ChoNoi.UI
                 timeManager.OnDayChanged -= HandleDayChanged;
             }
         }
+<<<<<<< HEAD
 
         private void BuildSplashAndHome(Transform parent)
         {
@@ -2713,6 +2904,8 @@ namespace ChoNoi.UI
         {
             return panelBgSprite;
         }
+=======
+>>>>>>> origin/Animation
     }
 
     // ==========================================
