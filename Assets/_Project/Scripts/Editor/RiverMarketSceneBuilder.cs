@@ -492,7 +492,7 @@ namespace ChoNoiMienTay.Editor
             obstacles.transform.SetParent(parent);
 
             CreateObstacle(obstacles.transform, "HyacinthPatch", PrimitiveType.Sphere, new Vector3(103f, 3.25f, 122f), new Vector3(3f, 0.35f, 2.5f), new Color(0.20f, 0.55f, 0.25f), true);
-            GameObject woodPost = CreateObstacle(obstacles.transform, "WoodPost", PrimitiveType.Cylinder, new Vector3(135f, 3.4f, 75f), new Vector3(0.8f, 3.5f, 0.8f), new Color(0.36f, 0.23f, 0.13f), false);
+            GameObject woodPost = CreateObstacle(obstacles.transform, "WoodPost", PrimitiveType.Cylinder, new Vector3(135f, 3.4f, 115f), new Vector3(0.8f, 3.5f, 0.8f), new Color(0.36f, 0.23f, 0.13f), false);
             CreatePrimitiveChild(woodPost.transform, "RedMarker", PrimitiveType.Cylinder, new Vector3(0f, 0.7f, 0f), new Vector3(1.2f, 0.25f, 1.2f), new Color(0.9f, 0.1f, 0.1f));
             CreateObstacle(obstacles.transform, "BrokenBoat", PrimitiveType.Cube, new Vector3(73f, 3.35f, 154f), new Vector3(4f, 0.8f, 1.6f), new Color(0.25f, 0.25f, 0.25f), false);
         }

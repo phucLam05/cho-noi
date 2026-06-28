@@ -61,6 +61,14 @@ namespace ChoNoiMienTay.Editor
             {
                 fullUI = systemsRoot.AddComponent<FullSimulatorUI>();
             }
+            if (systemsRoot.GetComponent<ChoNoi.Systems.CustomerSpawnManager>() == null)
+            {
+                systemsRoot.AddComponent<ChoNoi.Systems.CustomerSpawnManager>();
+            }
+            if (systemsRoot.GetComponent<ChoNoi.Systems.DayFlowController>() == null)
+            {
+                systemsRoot.AddComponent<ChoNoi.Systems.DayFlowController>();
+            }
             fullUI.inventoryManager = inventoryManager;
             fullUI.riverMarketHUD = systemsRoot.GetComponent<RiverMarketHUD>();
 

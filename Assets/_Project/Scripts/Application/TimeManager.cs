@@ -16,8 +16,8 @@ namespace ChoNoi.Application
     public class TimeManager : MonoBehaviour, ITimeSystem
     {
         [Header("Cấu hình thời gian")]
-        // Số phút in-game trôi qua trên mỗi 1 giây thực. timeScale=60 → 1s thực = 1h game.
-        [SerializeField] private float timeScale = 1f;
+        // Số phút in-game trôi qua trên mỗi 1 giây thực. timeScale=3 → 1 ngày game = 8 phút thực.
+        [SerializeField] private float timeScale = 3f;
         // Giờ bắt đầu trong ngày (mặc định 3h = Bình Minh).
         [SerializeField, Range(0f, 24f)] private float startHour = 3f;
 

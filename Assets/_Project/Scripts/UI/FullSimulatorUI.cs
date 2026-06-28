@@ -181,6 +181,16 @@ namespace ChoNoi.UI
                 timeManager.OnDayChanged += HandleDayChanged;
             }
 
+            // Ensure CustomerSpawnManager and DayFlowController exist on the systems root
+            if (gameObject.GetComponent<ChoNoi.Systems.CustomerSpawnManager>() == null)
+            {
+                gameObject.AddComponent<ChoNoi.Systems.CustomerSpawnManager>();
+            }
+            if (gameObject.GetComponent<ChoNoi.Systems.DayFlowController>() == null)
+            {
+                gameObject.AddComponent<ChoNoi.Systems.DayFlowController>();
+            }
+
             BuildExtraUI();
 
             var playerController = FindAnyObjectByType<ShorePlayerController>();
@@ -961,46 +971,68 @@ namespace ChoNoi.UI
 
                     if (!bargainingSystem.HasActiveSession)
                     {
-                        var items = new List<KeyValuePair<ItemData, int>>();
-                        if (inventoryManager != null)
+                        if (activeNpc.DesiredItem != null)
                         {
-                            foreach (var kvp in inventoryManager.Inventory)
+                            ItemData item = activeNpc.DesiredItem;
+                            int availableCount = 0;
+                            if (inventoryManager != null && inventoryManager.Inventory.TryGetValue(item, out int val))
                             {
-                                if (kvp.Value > 0) items.Add(kvp);
+                                availableCount = val;
                             }
-                        }
-
-                        if (items.Count == 0)
-                        {
-                            npcNameText.text = activeNpc.NpcDisplayName;
-                            if (bargainingSystem.SelectedItem == null && bargainingSystem.CurrentAskPrice == 0)
+                            
+                            if (availableCount <= 0)
                             {
-                                dialogueText.text = "Chào ngày mới chú em! Hôm nay ghe chú em trống trơn hà, có hàng gì đâu mà bán sỉ!";
+                                npcNameText.text = activeNpc.NpcDisplayName;
+                                dialogueText.text = $"Chào ngày mới! Tôi muốn mua ít {item.itemName} nhưng có vẻ trong khoang ghe của chú em không còn quả nào rồi.";
+                                CreateChoiceButton("1. Tạm biệt", CloseDialogueAndReleasePlayer);
+                                break;
                             }
-                            else
-                            {
-                                dialogueText.text = bargainingSystem.CurrentMessage;
-                            }
-                            CreateChoiceButton("1. Tạm biệt", CloseDialogueAndReleasePlayer);
-                            break;
+                            int quantity = Mathf.Min(activeNpc.DesiredQuantity, availableCount);
+                            bargainingSystem.StartBargainingSession(GetMerchantProfile(activeNpc), item, quantity);
                         }
                         else
                         {
-                            int randIdx = UnityEngine.Random.Range(0, items.Count);
-                            ItemData item = items[randIdx].Key;
-                            int availableCount = items[randIdx].Value;
-
-                            int quantity = 1;
-                            if (activeNpc.name.Contains("Large") || activeNpc.NpcDisplayName.Contains("Large") || activeNpc.NpcDisplayName.Contains("Merchant"))
+                            var items = new List<KeyValuePair<ItemData, int>>();
+                            if (inventoryManager != null)
                             {
-                                quantity = UnityEngine.Random.Range(5, Mathf.Min(20, availableCount) + 1);
+                                foreach (var kvp in inventoryManager.Inventory)
+                                {
+                                    if (kvp.Value > 0) items.Add(kvp);
+                                }
+                            }
+
+                            if (items.Count == 0)
+                            {
+                                npcNameText.text = activeNpc.NpcDisplayName;
+                                if (bargainingSystem.SelectedItem == null && bargainingSystem.CurrentAskPrice == 0)
+                                {
+                                    dialogueText.text = "Chào ngày mới chú em! Hôm nay ghe chú em trống trơn hà, có hàng gì đâu mà bán sỉ!";
+                                }
+                                else
+                                {
+                                    dialogueText.text = bargainingSystem.CurrentMessage;
+                                }
+                                CreateChoiceButton("1. Tạm biệt", CloseDialogueAndReleasePlayer);
+                                break;
                             }
                             else
                             {
-                                quantity = UnityEngine.Random.Range(1, Mathf.Min(5, availableCount) + 1);
-                            }
+                                int randIdx = UnityEngine.Random.Range(0, items.Count);
+                                ItemData item = items[randIdx].Key;
+                                int availableCount = items[randIdx].Value;
 
-                            bargainingSystem.StartBargainingSession(GetMerchantProfile(activeNpc), item, quantity);
+                                int quantity = 1;
+                                if (activeNpc.name.Contains("Large") || activeNpc.NpcDisplayName.Contains("Large") || activeNpc.NpcDisplayName.Contains("Merchant"))
+                                {
+                                    quantity = UnityEngine.Random.Range(5, Mathf.Min(20, availableCount) + 1);
+                                }
+                                else
+                                {
+                                    quantity = UnityEngine.Random.Range(1, Mathf.Min(5, availableCount) + 1);
+                                }
+
+                                bargainingSystem.StartBargainingSession(GetMerchantProfile(activeNpc), item, quantity);
+                            }
                         }
                     }
 

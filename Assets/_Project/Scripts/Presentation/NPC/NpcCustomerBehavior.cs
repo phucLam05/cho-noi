@@ -30,6 +30,27 @@ namespace ChoNoi.Presentation.NPC
         private float cooldownTimer = 0f;
         private bool didTriggerTrade = false;
 
+        public bool isSpawnedCustomer = false;
+        public bool hasSetCustomReturnPoint = false;
+
+        public void SetReturnPoint(Vector3 worldPos, Quaternion worldRot)
+        {
+            if (moveTarget == null)
+            {
+                if (transform.parent != null && (transform.parent.name.Contains("Boat") || transform.parent.name.Contains("Ghe") || transform.parent.name.Contains("Tau") || transform.parent.name.Contains("Npc")))
+                {
+                    moveTarget = transform.parent;
+                }
+                else
+                {
+                    moveTarget = transform;
+                }
+            }
+            originalLocalPosition = moveTarget.parent != null ? moveTarget.parent.InverseTransformPoint(worldPos) : worldPos;
+            originalLocalRotation = moveTarget.parent != null ? Quaternion.Inverse(moveTarget.parent.rotation) * worldRot : worldRot;
+            hasSetCustomReturnPoint = true;
+        }
+
         private void Start()
         {
             npcTarget = GetComponent<NpcTradeTarget>();
@@ -46,8 +67,11 @@ namespace ChoNoi.Presentation.NPC
             }
 
             bobComponent = moveTarget.GetComponent<AmbientBob>();
-            originalLocalPosition = moveTarget.localPosition;
-            originalLocalRotation = moveTarget.localRotation;
+            if (!hasSetCustomReturnPoint)
+            {
+                originalLocalPosition = moveTarget.localPosition;
+                originalLocalRotation = moveTarget.localRotation;
+            }
 
             // Adjust interaction radius based on entity type to ensure E-interaction works when stopped
             if (npcTarget != null)
@@ -202,25 +226,33 @@ namespace ChoNoi.Presentation.NPC
                     }
                     else
                     {
-                        // Fully returned
-                        moveTarget.localPosition = originalLocalPosition;
-                        moveTarget.localRotation = originalLocalRotation;
-
-                        if (wander != null) wander.SetPaused(false);
-                        if (bobComponent != null)
-                        {
-                            bobComponent.StartPosition = originalLocalPosition;
-                            bobComponent.enabled = true;
-                        }
-
                         // Release active buyer role
                         if (NpcTradeCoordinator.ActiveBuyer == npcTarget)
                         {
                             NpcTradeCoordinator.ActiveBuyer = null;
                         }
 
-                        cooldownTimer = cooldownTime;
-                        state = BehaviorState.Wandering;
+                        if (isSpawnedCustomer)
+                        {
+                            Debug.Log($"[NpcCustomerBehavior] Spawned customer {npcTarget.NpcDisplayName} returned to spawn. Destroying.");
+                            Destroy(moveTarget.gameObject);
+                        }
+                        else
+                        {
+                            // Fully returned
+                            moveTarget.localPosition = originalLocalPosition;
+                            moveTarget.localRotation = originalLocalRotation;
+
+                            if (wander != null) wander.SetPaused(false);
+                            if (bobComponent != null)
+                            {
+                                bobComponent.StartPosition = originalLocalPosition;
+                                bobComponent.enabled = true;
+                            }
+
+                            cooldownTimer = cooldownTime;
+                            state = BehaviorState.Wandering;
+                        }
                     }
                     break;
             }

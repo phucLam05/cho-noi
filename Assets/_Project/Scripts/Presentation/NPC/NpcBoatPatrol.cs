@@ -99,6 +99,8 @@ namespace ChoNoi.Presentation.NPC
             }
         }
 
+        public bool destroyOnLastWaypoint;
+
         private void Update()
         {
             if (waypoints == null || waypoints.Length == 0) return;
@@ -119,6 +121,12 @@ namespace ChoNoi.Presentation.NPC
 
             if (distance < 0.8f)
             {
+                if (destroyOnLastWaypoint && currentWaypointIndex == waypoints.Length - 1)
+                {
+                    Debug.Log($"[NpcBoatPatrol] Spawned boat {gameObject.name} reached final waypoint. Destroying.");
+                    Destroy(gameObject);
+                    return;
+                }
                 currentWaypointIndex = (currentWaypointIndex + 1) % waypoints.Length;
                 return;
             }

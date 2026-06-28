@@ -21,6 +21,9 @@ namespace ChoNoi.Presentation.NPC
         public float InteractionRadius => interactionRadius;
         public bool HasTraded { get; set; } = false;
 
+        public ChoNoiMienTay.Infrastructure.ItemData DesiredItem { get; set; }
+        public int DesiredQuantity { get; set; }
+
         public void Configure(string displayName, float radius, InteractionTargetType type)
         {
             npcDisplayName = displayName;
