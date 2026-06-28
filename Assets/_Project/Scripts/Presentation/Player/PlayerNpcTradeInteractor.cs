@@ -11,10 +11,7 @@ namespace ChoNoi.Presentation.Player
         [SerializeField] private RiverMarketHUD hud;
         [SerializeField] private ShorePlayerController playerController;
         [SerializeField] private BargainingPrototypeUI bargainingUI;
-<<<<<<< HEAD
-=======
         [SerializeField] private float targetRefreshInterval = 0.15f;
->>>>>>> origin/Animation
 
         private NpcTradeTarget currentTarget;
         private NpcTradeTarget activeTradeTarget;
@@ -37,7 +34,10 @@ namespace ChoNoi.Presentation.Player
             if (bargainingUI == null)
                 bargainingUI = FindAnyObjectByType<BargainingPrototypeUI>();
 
-<<<<<<< HEAD
+            fullUI = FindAnyObjectByType<FullSimulatorUI>();
+            boardingController = GetComponent<BoatBoardingController>();
+            RefreshTargets();
+
             // Dynamically add NpcCustomerBehavior to all NPC trade targets in the scene (excluding Upgrade targets)
             NpcTradeTarget[] targets = FindObjectsByType<NpcTradeTarget>(FindObjectsSortMode.None);
             foreach (var target in targets)
@@ -72,25 +72,12 @@ namespace ChoNoi.Presentation.Player
                 return true;
             }
             return false;
-=======
-            fullUI = FindAnyObjectByType<FullSimulatorUI>();
-            boardingController = GetComponent<BoatBoardingController>();
-            RefreshTargets();
->>>>>>> origin/Animation
         }
 
         private void Update()
         {
-<<<<<<< HEAD
             var fullUI = FindAnyObjectByType<FullSimulatorUI>();
             bool isAnyUIOpen = CheckIsAnyUIOpen(fullUI);
-=======
-            bool isDialogueOpen = fullUI != null && fullUI.IsDialogueOpen;
-            bool isUpgradeOpen = hud != null && hud.IsUpgradeOpen;
-
-            // When dialogue or upgrade UI is active, the player is interacting (inputs frozen elsewhere)
-            bool isAnyUIOpen = isDialogueOpen || isUpgradeOpen || (hud != null && hud.IsNpcTradeOpen) || (bargainingUI != null && !bargainingUI.IsHidden);
->>>>>>> origin/Animation
 
             if (playerController != null && !playerController.CanMove && !isAnyUIOpen)
             {
@@ -123,17 +110,8 @@ namespace ChoNoi.Presentation.Player
             if (currentTarget == null)
                 return false;
 
-<<<<<<< HEAD
             var fullUI = FindAnyObjectByType<FullSimulatorUI>();
             bool isAnyUIOpen = CheckIsAnyUIOpen(fullUI);
-=======
-            if (fullUI == null)
-                fullUI = FindAnyObjectByType<FullSimulatorUI>();
-
-            bool isDialogueOpen = fullUI != null && fullUI.IsDialogueOpen;
-            bool isUpgradeOpen = hud != null && hud.IsUpgradeOpen;
-            bool isAnyUIOpen = isDialogueOpen || isUpgradeOpen || (hud != null && hud.IsNpcTradeOpen) || (bargainingUI != null && !bargainingUI.IsHidden);
->>>>>>> origin/Animation
 
             if (isAnyUIOpen)
                 CloseTrade();
@@ -158,15 +136,6 @@ namespace ChoNoi.Presentation.Player
                 playerController.CanMove = false;
 
             // Freeze boat controls if on boat
-<<<<<<< HEAD
-            var boarding = GetComponent<BoatBoardingController>();
-            if (boarding != null && boarding.IsBoarded)
-            {
-                boarding.SetBoatControlActive(false);
-            }
-
-            var fullUI = FindAnyObjectByType<FullSimulatorUI>();
-=======
             if (boardingController == null)
                 boardingController = GetComponent<BoatBoardingController>();
 
@@ -177,7 +146,6 @@ namespace ChoNoi.Presentation.Player
 
             if (fullUI == null)
                 fullUI = FindAnyObjectByType<FullSimulatorUI>();
->>>>>>> origin/Animation
 
             switch (target.TargetType)
             {
@@ -208,30 +176,19 @@ namespace ChoNoi.Presentation.Player
             SetNpcPaused(activeTradeTarget, false);
             activeTradeTarget = null;
 
-<<<<<<< HEAD
-            var boarding = GetComponent<BoatBoardingController>();
-            bool onBoat = boarding != null && boarding.IsBoarded;
-=======
             if (boardingController == null)
                 boardingController = GetComponent<BoatBoardingController>();
 
             bool onBoat = boardingController != null && boardingController.IsBoarded;
->>>>>>> origin/Animation
 
             // Unfreeze player movement only if NOT on the boat
             if (playerController != null)
                 playerController.CanMove = !onBoat;
 
             // Unfreeze boat controls if on the boat
-<<<<<<< HEAD
-            if (boarding != null && onBoat)
-            {
-                boarding.SetBoatControlActive(true);
-=======
             if (boardingController != null && onBoat)
             {
                 boardingController.SetBoatControlActive(true);
->>>>>>> origin/Animation
             }
 
             if (hud != null)
@@ -240,13 +197,8 @@ namespace ChoNoi.Presentation.Player
             if (bargainingUI != null)
                 bargainingUI.ToggleVisibility(false);
 
-<<<<<<< HEAD
-            var fullUI = FindAnyObjectByType<FullSimulatorUI>();
-=======
             if (fullUI == null)
                 fullUI = FindAnyObjectByType<FullSimulatorUI>();
-
->>>>>>> origin/Animation
             if (fullUI != null)
                 fullUI.CloseAllDialogueAndPanels();
         }
@@ -275,14 +227,10 @@ namespace ChoNoi.Presentation.Player
             return closest;
         }
 
-<<<<<<< HEAD
-=======
         private void RefreshTargets()
         {
             cachedTargets = FindObjectsByType<NpcTradeTarget>(FindObjectsSortMode.None);
         }
-
->>>>>>> origin/Animation
         // Commented out OnGUI to avoid overlap with Canvas side prompts
         /*
         private void OnGUI()

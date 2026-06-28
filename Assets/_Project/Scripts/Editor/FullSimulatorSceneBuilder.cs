@@ -56,7 +56,6 @@ namespace ChoNoiMienTay.Editor
             prototypeUI.Configure(bargainingSystem, playerStats, inventoryManager);
 
             // 5. Attach FullSimulatorUI for Tutorial, Settings, Dialogue, Marketing
-<<<<<<< HEAD
             FullSimulatorUI fullUI = systemsRoot.GetComponent<FullSimulatorUI>();
             if (fullUI == null)
             {
@@ -90,12 +89,6 @@ namespace ChoNoiMienTay.Editor
                 prototypeUI.buttonSpritePressed = fullUI.buttonSpritePressed;
             }
 
-=======
-            FullSimulatorUI fullUI = systemsRoot.AddComponent<FullSimulatorUI>();
-            fullUI.inventoryManager = inventoryManager;
-            fullUI.riverMarketHUD = systemsRoot.GetComponent<RiverMarketHUD>();
-
->>>>>>> origin/Animation
             GameObject boat = GameObject.Find("PlayerBoat");
             if (boat != null)
             {
@@ -111,7 +104,6 @@ namespace ChoNoiMienTay.Editor
             ConfigureTradeTarget("Villager_C", InteractionTargetType.Trade);
             ConfigureTradeTarget("WoodPost", InteractionTargetType.Upgrade);
 
-<<<<<<< HEAD
             // Set dirty on modified components to ensure they are serialized and saved
             EditorUtility.SetDirty(systemsRoot);
             EditorUtility.SetDirty(fullUI);
@@ -119,8 +111,6 @@ namespace ChoNoiMienTay.Editor
             if (bargainingSystem != null) EditorUtility.SetDirty(bargainingSystem);
             if (hud != null) EditorUtility.SetDirty(hud);
 
-=======
->>>>>>> origin/Animation
             // Save the scene
             EditorSceneManager.SaveScene(scene);
             Debug.Log("Full UI Simulator Scene successfully built at Assets/_Project/Scenes/Core/RiverMarketScene.unity!");
