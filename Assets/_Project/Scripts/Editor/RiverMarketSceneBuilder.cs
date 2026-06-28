@@ -865,8 +865,36 @@ namespace ChoNoiMienTay.Editor
 
             GameObject visualRoot = new GameObject("PlayerVisualRoot");
             visualRoot.transform.SetParent(player.transform, false);
-            CreatePrimitiveChild(visualRoot.transform, "Body", PrimitiveType.Capsule, new Vector3(0f, 0.9f, 0f), new Vector3(0.55f, 0.9f, 0.55f), new Color(0.24f, 0.36f, 0.50f));
-            CreatePrimitiveChild(visualRoot.transform, "Hat", PrimitiveType.Cylinder, new Vector3(0f, 1.85f, 0f), new Vector3(0.42f, 0.08f, 0.42f), new Color(0.82f, 0.68f, 0.36f));
+
+            GameObject playerModelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(NpcModel1Path);
+            if (playerModelPrefab != null)
+            {
+                GameObject model = PrefabUtility.InstantiatePrefab(playerModelPrefab) as GameObject;
+                if (model != null)
+                {
+                    model.name = "PlayerModel";
+                    model.transform.SetParent(visualRoot.transform, false);
+                    model.transform.localPosition = Vector3.zero;
+                    model.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+                    model.transform.localScale = Vector3.one;
+                    DisableColliders(model);
+                    CleanImportedModel(model);
+
+                    // Setup Animator component
+                    Animator animator = model.GetComponent<Animator>();
+                    if (animator == null)
+                    {
+                        animator = model.AddComponent<Animator>();
+                    }
+                    animator.applyRootMotion = false;
+                    animator.runtimeAnimatorController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>("Assets/_Project/Animation/Character_1/Character_1_Controller.controller");
+                }
+            }
+            else
+            {
+                CreatePrimitiveChild(visualRoot.transform, "Body", PrimitiveType.Capsule, new Vector3(0f, 0.9f, 0f), new Vector3(0.55f, 0.9f, 0.55f), new Color(0.24f, 0.36f, 0.50f));
+                CreatePrimitiveChild(visualRoot.transform, "Hat", PrimitiveType.Cylinder, new Vector3(0f, 1.85f, 0f), new Vector3(0.42f, 0.08f, 0.42f), new Color(0.82f, 0.68f, 0.36f));
+            }
 
             GameObject shoreVillager = CreateNpcAvatar(parent, "ShoreVillagerNpc", new Vector3(78f, 4.25f, 38f), new Color(0.72f, 0.42f, 0.32f), true);
             shoreVillager.AddComponent<SimpleNpcWander>()

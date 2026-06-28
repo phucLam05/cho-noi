@@ -16,6 +16,8 @@ namespace ChoNoi.Presentation.Player
         [SerializeField] private Transform cameraTransform;
 
         private CharacterController characterController;
+        private Animator animator;
+        private string currentAnimState = "";
         private Vector3 verticalVelocity;
         private bool canMove = true;
         private float coyoteTimer;
@@ -28,7 +30,10 @@ namespace ChoNoi.Presentation.Player
             {
                 canMove = value;
                 if (!canMove)
+                {
                     verticalVelocity = Vector3.zero;
+                    PlayAnimation("Neutral Idle");
+                }
             }
         }
 
@@ -37,12 +42,16 @@ namespace ChoNoi.Presentation.Player
             characterController = GetComponent<CharacterController>();
             if (cameraTransform == null && Camera.main != null)
                 cameraTransform = Camera.main.transform;
+            animator = GetComponentInChildren<Animator>();
         }
 
         private void Update()
         {
             if (!canMove || characterController == null || !characterController.enabled)
+            {
+                PlayAnimation("Neutral Idle");
                 return;
+            }
 
             Vector2 input = ReadMoveInput();
             if (cameraTransform == null && Camera.main != null)
@@ -65,6 +74,12 @@ namespace ChoNoi.Presentation.Player
                 Quaternion targetRotation = Quaternion.LookRotation(move, Vector3.up);
                 transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
                 characterController.Move(move * speed * Time.deltaTime);
+
+                PlayAnimation("Walking");
+            }
+            else
+            {
+                PlayAnimation("Neutral Idle");
             }
 
             if (characterController.isGrounded)
@@ -88,6 +103,21 @@ namespace ChoNoi.Presentation.Player
 
             verticalVelocity.y += gravity * Time.deltaTime;
             characterController.Move(verticalVelocity * Time.deltaTime);
+        }
+
+        private void PlayAnimation(string stateName)
+        {
+            if (animator == null)
+                animator = GetComponentInChildren<Animator>();
+
+            if (animator == null || !animator.enabled)
+                return;
+
+            if (currentAnimState != stateName)
+            {
+                currentAnimState = stateName;
+                animator.CrossFadeInFixedTime(stateName, 0.15f);
+            }
         }
 
         private Vector3 GetCameraRelativeMove(Vector2 input)
