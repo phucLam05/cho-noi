@@ -41,7 +41,7 @@ namespace ChoNoi.Presentation.Player
 
         private void Update()
         {
-            if (!canMove || characterController == null)
+            if (!canMove || characterController == null || !characterController.enabled)
                 return;
 
             Vector2 input = ReadMoveInput();
