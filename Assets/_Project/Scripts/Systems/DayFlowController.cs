@@ -157,9 +157,18 @@ namespace ChoNoi.Systems
         {
             ShowNotification("Bạn kiệt sức và ngất đi! Dân làng chèo ghe đưa bạn về nhà. (-5,000 VNĐ)");
             
-            if (playerStats != null)
+            var economy = FindAnyObjectByType<EconomyManager>();
+            if (economy != null)
+            {
+                economy.RecordLateFee(5000);
+            }
+            else if (playerStats != null)
             {
                 playerStats.DeductMoney(5000);
+            }
+
+            if (playerStats != null)
+            {
                 playerStats.RestoreStamina(30f); // Restores some stamina
             }
 
@@ -201,7 +210,16 @@ namespace ChoNoi.Systems
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.None;
 
-            BuildAndShowSummaryPanel();
+            var daySummaryUI = FindAnyObjectByType<DaySummaryUI>();
+            if (daySummaryUI != null)
+            {
+                var economy = FindAnyObjectByType<EconomyManager>();
+                daySummaryUI.Open(economy, timeManager, ContinueToNextDay);
+            }
+            else
+            {
+                BuildAndShowSummaryPanel();
+            }
         }
 
         private void BuildAndShowSummaryPanel()
@@ -317,6 +335,12 @@ namespace ChoNoi.Systems
             isSummaryOpen = false;
             Time.timeScale = 1f; // Resume time
 
+            var economy = FindAnyObjectByType<EconomyManager>();
+            if (economy != null)
+            {
+                economy.ResetDailyMetrics();
+            }
+
             if (timeManager != null)
             {
                 timeManager.Sleep(); // advances day and triggers auto-save
@@ -391,22 +415,11 @@ namespace ChoNoi.Systems
         {
             if (string.IsNullOrEmpty(message)) return;
 
-            if (riverMarketHUD != null)
-            {
-                // RiverMarketHUD has notification capability or status refresh
-                Debug.Log($"[DayFlowController Notification] {message}");
-            }
+            Debug.Log($"[DayFlowController Notification] {message}");
             
-            // Expose notification popup directly onto HUD if possible, or print in console
-            var hud = FindAnyObjectByType<RiverMarketHUD>();
-            if (hud != null)
+            if (NotificationUI.Instance != null)
             {
-                // Check if HUD has statusText or similar to append notification
-                var statusText = hud.transform.Find("RiverMarketHUD/TopBar/StatusText")?.GetComponent<Text>();
-                if (statusText != null)
-                {
-                    statusText.text += $" | {message}";
-                }
+                NotificationUI.Instance.ShowNotification(message);
             }
         }
     }

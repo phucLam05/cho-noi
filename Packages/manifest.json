@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.gameframex.unity.demigiant.dotween": "https://github.com/gameframex/com.gameframex.unity.demigiant.dotween.git",
     "com.unity.ai.assistant": "2.9.0-pre.2",
     "com.unity.ai.navigation": "2.0.12",
     "com.unity.cinemachine": "3.1.2",

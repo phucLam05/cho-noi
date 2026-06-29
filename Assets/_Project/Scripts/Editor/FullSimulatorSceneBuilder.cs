@@ -55,7 +55,23 @@ namespace ChoNoiMienTay.Editor
             bargainingSystem.Configure(config, playerStats, inventoryManager, economyManager);
             prototypeUI.Configure(bargainingSystem, playerStats, inventoryManager);
 
-            // 5. Attach FullSimulatorUI for Tutorial, Settings, Dialogue, Marketing
+            // 5. Generate and Attach Master Canvas
+            UIBuilderEditor.GeneratePrefabs();
+
+            GameObject masterCanvasPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Prefabs/UI/MasterCanvas.prefab");
+            
+            // Delete existing MasterCanvas in scene if any
+            GameObject existingCanvas = GameObject.Find("MasterCanvas");
+            if (existingCanvas != null)
+            {
+                Object.DestroyImmediate(existingCanvas);
+            }
+
+            // Instantiate MasterCanvas in scene
+            GameObject masterCanvasInstance = (GameObject)PrefabUtility.InstantiatePrefab(masterCanvasPrefab);
+            masterCanvasInstance.name = "MasterCanvas";
+
+            // Attach FullSimulatorUI for Tutorial, Settings, Dialogue, Marketing
             FullSimulatorUI fullUI = systemsRoot.GetComponent<FullSimulatorUI>();
             if (fullUI == null)
             {
@@ -69,14 +85,29 @@ namespace ChoNoiMienTay.Editor
             {
                 systemsRoot.AddComponent<ChoNoi.Systems.DayFlowController>();
             }
+
+            // Wire up components on fullUI
+            fullUI.masterCanvasPrefab = masterCanvasPrefab;
+            fullUI.masterCanvasInstance = masterCanvasInstance;
+            fullUI.hudCtrl = masterCanvasInstance.GetComponentInChildren<HUDController>();
+            fullUI.invUI = masterCanvasInstance.GetComponentInChildren<ChoNoiMienTay.UI.InventoryUI>();
+            fullUI.diaUI = masterCanvasInstance.GetComponentInChildren<DialogueUI>();
+            fullUI.trUI = masterCanvasInstance.GetComponentInChildren<TradeUI>();
+            fullUI.daySumUI = masterCanvasInstance.GetComponentInChildren<DaySummaryUI>();
+            fullUI.settingsUI = masterCanvasInstance.GetComponentInChildren<SettingsUI>();
+            fullUI.confUI = masterCanvasInstance.GetComponentInChildren<ConfirmationPopup>();
+            fullUI.loadUI = masterCanvasInstance.GetComponentInChildren<LoadingUI>();
+            fullUI.transUI = masterCanvasInstance.GetComponentInChildren<TransitionUI>();
+            fullUI.goUI = masterCanvasInstance.GetComponentInChildren<GameOverUI>();
+
             fullUI.inventoryManager = inventoryManager;
             fullUI.riverMarketHUD = systemsRoot.GetComponent<RiverMarketHUD>();
 
-            // Load rasterized PNG sprites from Art/UI (supporting native 9-slicing)
-            fullUI.panelBgSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_Project/Art/UI/panel_lobby.png");
-            fullUI.buttonSpriteNormal = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_Project/Art/UI/button_soft_orange.png");
-            fullUI.buttonSpriteHover = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_Project/Art/UI/button_plain_orangeyellow.png");
-            fullUI.buttonSpritePressed = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_Project/Art/UI/button_soft_blue.png");
+            // Load Kenney stylized PNG sprites
+            fullUI.panelBgSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_Project/Art/UI/Kenney/rpg/PNG/panel_brown.png");
+            fullUI.buttonSpriteNormal = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_Project/Art/UI/Kenney/rpg/PNG/buttonLong_brown.png");
+            fullUI.buttonSpriteHover = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_Project/Art/UI/Kenney/rpg/PNG/buttonLong_brown.png");
+            fullUI.buttonSpritePressed = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_Project/Art/UI/Kenney/rpg/PNG/buttonLong_brown_pressed.png");
 
             // Load and assign to RiverMarketHUD as well
             RiverMarketHUD hud = systemsRoot.GetComponent<RiverMarketHUD>();
