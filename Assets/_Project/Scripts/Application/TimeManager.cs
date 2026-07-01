@@ -16,16 +16,19 @@ namespace ChoNoi.Application
     public class TimeManager : MonoBehaviour, ITimeSystem
     {
         [Header("Cấu hình thời gian")]
-        // Số phút in-game trôi qua trên mỗi 1 giây thực. timeScale=3 → 1 ngày game = 8 phút thực.
-        [SerializeField] private float timeScale = 3f;
-        // Giờ bắt đầu trong ngày (mặc định 3h = Bình Minh).
-        [SerializeField, Range(0f, 24f)] private float startHour = 3f;
+        [SerializeField] private float dawnTimeScale = 1.5f;
+        [SerializeField] private float dayTimeScale = 4f;
+        [SerializeField] private float duskTimeScale = 2f;
+        [SerializeField] private float nightTimeScale = 4f;
+        // Giờ bắt đầu trong ngày (mặc định 4h = Bình Minh theo gameplay_v2).
+        [SerializeField, Range(0f, 24f)] private float startHour = 4f;
 
-        // Mốc giờ kích hoạt từng Phase (theo execution-plan).
-        private const int DawnHour  = 3;
-        private const int DayHour   = 10;
-        private const int DuskHour  = 13;
-        private const int NightHour = 18;
+        // Mốc giờ gameplay_v2:
+        // Dawn: 04:00 - 10:59 | Day: 11:00 - 17:59 | Dusk: 18:00 - 19:59 | Night: 20:00 - 03:59
+        private const int DawnHour  = 4;
+        private const int DayHour   = 11;
+        private const int DuskHour  = 18;
+        private const int NightHour = 20;
 
         // Tổng số phút in-game đã trôi trong ngày hiện tại [0, 1440).
         private float minutesOfDay;
@@ -116,8 +119,8 @@ namespace ChoNoi.Application
         {
             if (!initialized) return;
 
-            // Bước 1: Cộng dồn thời gian theo timeScale (phút game / giây thực) và wrap 24h.
-            minutesOfDay += Time.deltaTime * timeScale;
+            // Bước 1: Cộng dồn thời gian theo time scale hiện tại của phase.
+            minutesOfDay += Time.deltaTime * GetCurrentTimeScale();
             if (minutesOfDay >= 1440f)
                 minutesOfDay = Mathf.Repeat(minutesOfDay, 1440f);
 
@@ -143,6 +146,18 @@ namespace ChoNoi.Application
         // Phút hiện tại 0-59.
         private int Minute => Mathf.FloorToInt(minutesOfDay % 60f);
 
+        private float GetCurrentTimeScale()
+        {
+            GamePhase phase = GetPhaseForHour(Hour);
+            return phase switch
+            {
+                GamePhase.Dawn => dawnTimeScale,
+                GamePhase.Day => dayTimeScale,
+                GamePhase.Dusk => duskTimeScale,
+                _ => nightTimeScale
+            };
+        }
+
         /// <summary>
         /// Quy đổi giờ (0-23) sang GamePhase tương ứng.
         /// Night kéo dài từ 18h tối tới trước 3h sáng hôm sau.
@@ -150,10 +165,10 @@ namespace ChoNoi.Application
         /// <param name="hour">Giờ trong ngày, 0-23.</param>
         private GamePhase GetPhaseForHour(int hour)
         {
-            if (hour >= DawnHour && hour < DayHour)  return GamePhase.Dawn;   // 03:00 - 09:59
-            if (hour >= DayHour  && hour < DuskHour) return GamePhase.Day;    // 10:00 - 12:59
-            if (hour >= DuskHour && hour < NightHour) return GamePhase.Dusk;  // 13:00 - 17:59
-            return GamePhase.Night;                                           // 18:00 - 02:59
+            if (hour >= DawnHour && hour < DayHour)  return GamePhase.Dawn;   // 04:00 - 10:59
+            if (hour >= DayHour  && hour < DuskHour) return GamePhase.Day;    // 11:00 - 17:59
+            if (hour >= DuskHour && hour < NightHour) return GamePhase.Dusk;  // 18:00 - 19:59
+            return GamePhase.Night;                                           // 20:00 - 03:59
         }
     }
 }

@@ -126,13 +126,6 @@ namespace ChoNoiMienTay.Systems
                 return false;
             }
 
-            if (playerStats == null || !playerStats.ConsumeStamina(economyConfig.StaminaCostPerNegotiation))
-            {
-                CurrentMessage = "Không đủ thể lực để tiếp tục mặc cả.";
-                NotifyStateChanged();
-                return false;
-            }
-
             CurrentAskPrice = Mathf.Max(economyConfig.OfferStep, CurrentAskPrice + direction * economyConfig.OfferStep);
             CurrentMessage = BuildNegotiationReaction();
             NotifyStateChanged();
@@ -268,14 +261,6 @@ namespace ChoNoiMienTay.Systems
         {
             if (!HasActiveSession) return false;
 
-            // Consumes 5 stamina
-            if (playerStats == null || !playerStats.ConsumeStamina(5))
-            {
-                CurrentMessage = "Không đủ thể lực để mặc cả.";
-                NotifyStateChanged();
-                return false;
-            }
-
             PlayerProposedPrice = proposedPrice;
 
             if (RollAcceptance(PlayerProposedPrice))
@@ -321,14 +306,6 @@ namespace ChoNoiMienTay.Systems
         public bool CounterOffer(int counterPrice)
         {
             if (!HasActiveSession) return false;
-
-            // Consumes 5 stamina
-            if (playerStats == null || !playerStats.ConsumeStamina(5))
-            {
-                CurrentMessage = "Không đủ thể lực để đôi co tiếp.";
-                NotifyStateChanged();
-                return false;
-            }
 
             NegotiationTurns++;
             PlayerProposedPrice = counterPrice;

@@ -44,11 +44,6 @@ namespace ChoNoi.Systems
             "Khách Du Lịch Sài Gòn", "Tây Balo John", "Gia Đình Phương Xa", "Nhà Khảo Sát Văn Hóa"
         };
 
-        private readonly string[] vendorNames = new string[]
-        {
-            "Ghe Hủ Tiếu Lắc", "Ghe Cà Phê Vợt Cô Năm", "Ghe Bánh Mì Nóng", "Ghe Nước Sâm Mát Lạnh"
-        };
-
         private void Start()
         {
             if (timeManager == null) timeManager = FindAnyObjectByType<TimeManager>();
@@ -100,17 +95,6 @@ namespace ChoNoi.Systems
 
             if (activeCustomers.Count >= maxActiveCustomers) return;
 
-            // Only spawn if player is inside the Morning Market Zone (Z = [55f, 95f])
-            GameObject playerBoat = GameObject.Find("PlayerBoat");
-            if (playerBoat == null) return;
-
-            float playerZ = playerBoat.transform.position.z;
-            if (playerZ < 55f || playerZ > 95f)
-            {
-                // Player is not in the market zone! Stop spawning.
-                return;
-            }
-
             spawnTimer -= Time.deltaTime;
             if (spawnTimer <= 0f)
             {
@@ -121,24 +105,24 @@ namespace ChoNoi.Systems
 
         private void HandlePhaseChanged(GamePhase phase)
         {
-            if (phase == GamePhase.Dawn)
+            if (phase == GamePhase.Dawn || phase == GamePhase.Day || phase == GamePhase.Dusk)
             {
                 isSpawningActive = true;
                 ResetSpawnTimer();
-                Debug.Log("[CustomerSpawnManager] Market phase started. Spawn manager is ACTIVE.");
+                Debug.Log($"[CustomerSpawnManager] Traffic phase {phase} started. Spawn manager is ACTIVE.");
             }
             else
             {
                 isSpawningActive = false;
                 DismissAllSpawnedCustomers();
-                Debug.Log("[CustomerSpawnManager] Market phase ended. Dismissing spawned customers.");
+                Debug.Log("[CustomerSpawnManager] Traffic phase ended. Dismissing spawned customers.");
             }
         }
 
         private void ResetSpawnTimer()
         {
             float attractMultiplier = 1f;
-            if (bambooPoleManager != null && bambooPoleManager.DisplayedItems.Count > 0)
+            if (CanSpawnBuyerTraffic())
             {
                 attractMultiplier = 1f + bambooPoleManager.DisplayedItems.Count * 0.7f; // slightly stronger attraction
             }
@@ -150,6 +134,8 @@ namespace ChoNoi.Systems
         private void SpawnRandomNpc()
         {
             if (templateBoat == null) return;
+
+            bool canSpawnBuyer = CanSpawnBuyerTraffic();
 
             // Select a random spawn point
             int spawnIdx = Random.Range(0, spawnPoints.Length);
@@ -172,7 +158,7 @@ namespace ChoNoi.Systems
 
             // Decide NPC type
             float rand = Random.value;
-            bool isBuyer = rand < 0.70f; // 70% Buyer Customer, 15% Tourist, 15% Food Vendor
+            bool isBuyer = canSpawnBuyer && rand < 0.70f; // gameplay_v2: Buyer 70%, Tourist 30%, no food vendor
 
             if (isBuyer)
             {
@@ -210,22 +196,10 @@ namespace ChoNoi.Systems
             }
             else
             {
-                // 2. Tourist or Food Vendor - moves along patrol waypoints, doesn't cluster on player
-                bool isTourist = rand < 0.85f;
-                string displayName = "";
-                
-                if (isTourist)
-                {
-                    clone.name = $"SpawnedTourist_{Random.Range(1000, 9999)}";
-                    displayName = touristNames[Random.Range(0, touristNames.Length)];
-                    tradeTarget.Configure(displayName, 4.5f, InteractionTargetType.Trade); // gardener conversation path
-                }
-                else
-                {
-                    clone.name = $"SpawnedFoodVendor_{Random.Range(1000, 9999)}";
-                    displayName = vendorNames[Random.Range(0, vendorNames.Length)];
-                    tradeTarget.Configure(displayName, 4.5f, InteractionTargetType.Trade); // vendor noodle/stamina purchase path
-                }
+                // Tourist traffic exists across the day to keep the river lively.
+                string displayName = touristNames[Random.Range(0, touristNames.Length)];
+                clone.name = $"SpawnedTourist_{Random.Range(1000, 9999)}";
+                tradeTarget.Configure(displayName, 4.5f, InteractionTargetType.News);
                 tradeTarget.HasTraded = false;
 
                 // Ensure NpcCustomerBehavior is NOT on it so it doesn't approach player boat automatically
@@ -276,10 +250,26 @@ namespace ChoNoi.Systems
                 patrol.Configure(path, patrolSpeed, animator);
                 patrol.destroyOnLastWaypoint = true;
 
-                Debug.Log($"[CustomerSpawnManager] Spawned traversing boat: {displayName} at {spawnPos}");
+                Debug.Log($"[CustomerSpawnManager] Spawned tourist boat: {displayName} at {spawnPos}");
             }
 
             activeCustomers.Add(clone);
+        }
+
+        private bool CanSpawnBuyerTraffic()
+        {
+            if (timeManager == null || bambooPoleManager == null || bambooPoleManager.DisplayedItems.Count <= 0)
+                return false;
+
+            if (timeManager.CurrentPhase != GamePhase.Dawn)
+                return false;
+
+            GameObject playerBoat = GameObject.Find("PlayerBoat");
+            if (playerBoat == null)
+                return false;
+
+            float playerZ = playerBoat.transform.position.z;
+            return playerZ >= 55f && playerZ <= 95f;
         }
 
         private void DismissAllSpawnedCustomers()

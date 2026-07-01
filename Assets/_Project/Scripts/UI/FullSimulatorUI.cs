@@ -108,8 +108,6 @@ namespace ChoNoi.UI
             MerchantGreeting,
             MerchantSelectQuantity,
             MerchantBargaining,
-            VendorGreeting,
-            VendorTrading,
             VendorNews,
             GardenerGreeting,
             GardenerTrading,
@@ -238,6 +236,8 @@ namespace ChoNoi.UI
                 }
             }
 
+            DisableLegacyHudOverlays();
+
             // Ensure CustomerSpawnManager and DayFlowController exist on the systems root
             if (gameObject.GetComponent<ChoNoi.Systems.CustomerSpawnManager>() == null)
             {
@@ -364,33 +364,27 @@ namespace ChoNoi.UI
 
             if (masterCanvasInstance != null)
             {
-                dialoguePanel = diaUI != null ? diaUI.gameObject : null;
-                npcNameText = diaUI != null ? diaUI.NpcNameText : null;
-                dialogueText = diaUI != null ? diaUI.DialogueText : null;
-                npcAvatar = diaUI != null ? diaUI.NpcPortrait : null;
-                playerAvatar = diaUI != null ? diaUI.PlayerPortrait : null;
-                choicePanel = diaUI != null && diaUI.ChoiceContainer != null ? diaUI.ChoiceContainer.gameObject : null;
+                // Asset swaps can easily break serialized child references inside MasterCanvas.
+                // Keep using the shared canvas/HUD shell, but always build gameplay overlays here
+                // so menus, prompts, and dialogue remain functional even if prefab bindings drift.
+                if (diaUI != null) diaUI.gameObject.SetActive(false);
+                if (invUI != null) invUI.gameObject.SetActive(false);
+                if (settingsUI != null)
+                {
+                    if (settingsUI.SettingsPanel != null) settingsUI.SettingsPanel.SetActive(false);
+                    if (settingsUI.PausePanel != null) settingsUI.PausePanel.SetActive(false);
+                }
+                if (trUI != null) trUI.gameObject.SetActive(false);
 
-                marketingPanel = invUI != null ? invUI.gameObject : null;
-                
-                settingsPanel = settingsUI != null && settingsUI.SettingsPanel != null ? settingsUI.SettingsPanel : null;
-                pausePanel = settingsUI != null && settingsUI.PausePanel != null ? settingsUI.PausePanel : null;
+                if (diaUI != null) diaUI.enabled = false;
+                if (invUI != null) invUI.enabled = false;
+                if (settingsUI != null) settingsUI.enabled = false;
+                if (trUI != null) trUI.enabled = false;
 
-                tradeQuantityPanel = trUI != null ? trUI.gameObject : null;
-
-                // Still build tutorial, splash, home and boat yard panels procedurally so we don't break anything!
-                BuildTutorialPanel(canvasObject.transform);
-                BuildBoatYardPanel(canvasObject.transform);
-                BuildSplashAndHome(canvasObject.transform);
-
-                // Disable overlays initially
-                if (dialoguePanel != null) dialoguePanel.SetActive(false);
-                if (marketingPanel != null) marketingPanel.SetActive(false);
-                if (settingsPanel != null) settingsPanel.SetActive(false);
-                if (pausePanel != null) pausePanel.SetActive(false);
-                if (tradeQuantityPanel != null) tradeQuantityPanel.SetActive(false);
-
-                return;
+                diaUI = null;
+                invUI = null;
+                settingsUI = null;
+                trUI = null;
             }
 
             // Top right buttons for new features
@@ -590,13 +584,6 @@ namespace ChoNoi.UI
 
         private void ToggleSettings()
         {
-            if (settingsUI != null)
-            {
-                if (settingsUI.IsSettingsOpen) settingsUI.ResumeGame();
-                else settingsUI.PauseGame(); // SettingsUI opens settings when Open/Pause is called
-                return;
-            }
-
             if (settingsPanel == null) return;
             bool active = !settingsPanel.activeSelf;
             settingsPanel.SetActive(active);
@@ -623,12 +610,6 @@ namespace ChoNoi.UI
 
         private void TogglePause()
         {
-            if (settingsUI != null)
-            {
-                settingsUI.TogglePause();
-                return;
-            }
-
             if (pausePanel == null) return;
             bool active = !pausePanel.activeSelf;
             pausePanel.SetActive(active);
@@ -675,18 +656,12 @@ namespace ChoNoi.UI
 
         public void ToggleMarketing()
         {
-            if (invUI != null)
-            {
-                invUI.Toggle();
-                UpdateCursorState();
-                return;
-            }
-
             if (marketingPanel == null) return;
             marketingPanel.SetActive(!marketingPanel.activeSelf);
             
             if (marketingPanel.activeSelf)
             {
+                marketingPanel.transform.SetAsLastSibling();
                 activeCargoTab = 0;
                 RefreshMarketing();
             }
@@ -703,13 +678,6 @@ namespace ChoNoi.UI
 
         public void OpenMarketingPanel()
         {
-            if (invUI != null)
-            {
-                invUI.Open();
-                UpdateCursorState();
-                return;
-            }
-
             if (marketingPanel != null && !marketingPanel.activeSelf)
             {
                 ToggleMarketing();
@@ -718,13 +686,6 @@ namespace ChoNoi.UI
 
         public void CloseMarketingPanel()
         {
-            if (invUI != null)
-            {
-                invUI.Close();
-                UpdateCursorState();
-                return;
-            }
-
             if (marketingPanel != null && marketingPanel.activeSelf)
             {
                 if (activeDragObject != null)
@@ -749,10 +710,12 @@ namespace ChoNoi.UI
             if (tabButton1 != null && tabButton2 != null)
             {
                 tabButton1.GetComponent<Graphic>().color = activeCargoTab == 0 ? new Color(0.86f, 0.73f, 0.46f, 1f) : new Color(0.2f, 0.4f, 0.6f, 1f);
-                tabButton1.transform.Find("Label").GetComponent<Text>().color = activeCargoTab == 0 ? Color.black : Color.white;
+                TMP_Text tab1Label = FindTextComponent(tabButton1.transform, "Label");
+                if (tab1Label != null) tab1Label.color = activeCargoTab == 0 ? Color.black : Color.white;
 
                 tabButton2.GetComponent<Graphic>().color = activeCargoTab == 1 ? new Color(0.86f, 0.73f, 0.46f, 1f) : new Color(0.2f, 0.4f, 0.6f, 1f);
-                tabButton2.transform.Find("Label").GetComponent<Text>().color = activeCargoTab == 1 ? Color.black : Color.white;
+                TMP_Text tab2Label = FindTextComponent(tabButton2.transform, "Label");
+                if (tab2Label != null) tab2Label.color = activeCargoTab == 1 ? Color.black : Color.white;
             }
 
             if (khoangThuyenTabContent != null) khoangThuyenTabContent.SetActive(activeCargoTab == 0);
@@ -1002,6 +965,8 @@ namespace ChoNoi.UI
             justFinishedTrade = false;
 
             dialoguePanel.SetActive(true);
+            dialoguePanel.transform.SetAsLastSibling();
+            if (choicePanel != null) choicePanel.transform.SetAsLastSibling();
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.None;
 
@@ -1011,9 +976,9 @@ namespace ChoNoi.UI
         public void OpenTradeDialogue(NpcTradeTarget npc)
         {
             activeNpc = npc;
-            if (npc.name.Contains("FoodVendor") || npc.NpcDisplayName.Contains("Vendor"))
+            if (npc.TargetType == InteractionTargetType.News || npc.name.Contains("Tourist") || npc.NpcDisplayName.Contains("Khách"))
             {
-                dialogueState = DialogueState.VendorGreeting;
+                dialogueState = DialogueState.VendorNews;
             }
             else
             {
@@ -1021,6 +986,8 @@ namespace ChoNoi.UI
             }
 
             dialoguePanel.SetActive(true);
+            dialoguePanel.transform.SetAsLastSibling();
+            if (choicePanel != null) choicePanel.transform.SetAsLastSibling();
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.None;
 
@@ -1033,6 +1000,8 @@ namespace ChoNoi.UI
             dialogueState = DialogueState.UpgradeCampGreeting;
 
             dialoguePanel.SetActive(true);
+            dialoguePanel.transform.SetAsLastSibling();
+            if (choicePanel != null) choicePanel.transform.SetAsLastSibling();
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.None;
 
@@ -1288,66 +1257,40 @@ namespace ChoNoi.UI
                     }
                     break;
 
-                case DialogueState.VendorGreeting:
-                    npcNameText.text = activeNpc.NpcDisplayName;
-                    dialogueText.text = "Tô bún riêu cua đồng thơm phức đây! Dừng chân ăn uống nghỉ ngơi chút không chú em?";
-
-                    npcAvatar.color = Color.white;
-                    playerAvatar.color = new Color(1f, 1f, 1f, 0.4f);
-
-                    int vIndex = 1;
-                    CreateChoiceButton($"{vIndex++}. Ăn tô bún nước lèo (Hồi thể lực - 8,000 VNĐ)", () =>
-                    {
-                        RestoreStaminaOnVendor();
-                        UpdateDialogueUI();
-                    });
-
-                    CreateChoiceButton($"{vIndex++}. Hỏi thăm tin tức thị trường", () =>
-                    {
-                        dialogueState = DialogueState.VendorNews;
-                        UpdateDialogueUI();
-                    });
-
-                    CreateChoiceButton($"{vIndex++}. Nghỉ ngơi đến sáng (Ngủ)", () =>
-                    {
-                        SleepOnVendor();
-                    });
-
-                    CreateChoiceButton($"{vIndex++}. Tạm biệt", CloseDialogueAndReleasePlayer);
-                    break;
-
-                case DialogueState.VendorTrading:
-                    // Đi theo lối GardenerTrading nên không dùng VendorTrading nữa
-                    dialogueState = DialogueState.GardenerTrading;
-                    UpdateDialogueUI();
-                    break;
-
                 case DialogueState.VendorNews:
                     npcNameText.text = activeNpc.NpcDisplayName;
-                    
+
                     string rumor = "Hiện tại chưa có tin đồn thị trường nào mới.";
                     var newsController = FindAnyObjectByType<MarketNewsController>();
                     if (newsController != null && newsController.CurrentNews != null)
                     {
                         rumor = $"[TIN ĐỒN]: {newsController.CurrentNews.headline}\n\n\"{newsController.CurrentNews.marketRumor}\"";
                     }
-                    dialogueText.text = rumor;
+
+                    bool isTouristBoat = activeNpc.TargetType == InteractionTargetType.News || activeNpc.name.Contains("Tourist") || activeNpc.NpcDisplayName.Contains("Khách");
+                    if (isTouristBoat)
+                    {
+                        dialogueText.text = "Khách du lịch đang trầm trồ ngắm cảnh chợ nổi.\n\n" + rumor;
+                    }
+                    else
+                    {
+                        dialogueText.text = rumor;
+                    }
 
                     npcAvatar.color = Color.white;
                     playerAvatar.color = new Color(1f, 1f, 1f, 0.4f);
 
-                    CreateChoiceButton("1. Cảm ơn thông tin!", () =>
+                    CreateChoiceButton(isTouristBoat ? "1. Chúc chuyến đi vui vẻ!" : "1. Cảm ơn thông tin!", () =>
                     {
-                        // Quay lại greeting tương ứng
-                        if (activeNpc.name.Contains("FoodVendor") || activeNpc.NpcDisplayName.Contains("Vendor"))
+                        if (isTouristBoat)
                         {
-                            dialogueState = DialogueState.VendorGreeting;
+                            CloseDialogueAndReleasePlayer();
                         }
                         else
                         {
                             dialogueState = DialogueState.GardenerGreeting;
+                            UpdateDialogueUI();
                         }
-                        UpdateDialogueUI();
                     });
                     break;
 
@@ -1552,29 +1495,6 @@ namespace ChoNoi.UI
             Destroy(repair);
         }
 
-        private void RestoreStaminaOnVendor()
-        {
-            var economy = FindAnyObjectByType<EconomyManager>();
-            if (economy == null) return;
-
-            ServiceData meal = ScriptableObject.CreateInstance<ServiceData>();
-            meal.serviceName = "Bun Nuoc Leo";
-            meal.costMoney = 8000;
-            meal.staminaRestoreAmount = 18f;
-            economy.BuyService(meal);
-            Destroy(meal);
-        }
-
-        private void SleepOnVendor()
-        {
-            var time = FindAnyObjectByType<TimeManager>();
-            if (time != null)
-            {
-                time.Sleep();
-            }
-            CloseDialogueAndReleasePlayer();
-        }
-
         private List<ItemData> GetMarketItemsList()
         {
             if (riverMarketHUD != null)
@@ -1629,10 +1549,16 @@ namespace ChoNoi.UI
         private void UpdateSidePrompts(bool isBoarded)
         {
             // If any major UI is open (Tutorial, Settings, Dialogue, Upgrade HUD, news HUD) hide prompts
-            bool isUIActive = (dialoguePanel != null && dialoguePanel.activeSelf) 
+            bool isUIActive = !isInGameplay
+                || (dialoguePanel != null && dialoguePanel.activeSelf) 
                 || (marketingPanel != null && marketingPanel.activeSelf)
                 || (tutorialPanel != null && tutorialPanel.activeSelf)
+                || (pausePanel != null && pausePanel.activeSelf)
                 || (settingsPanel != null && settingsPanel.activeSelf)
+                || (tradeQuantityPanel != null && tradeQuantityPanel.activeSelf)
+                || (boatYardPanel != null && boatYardPanel.activeSelf)
+                || (homePanel != null && homePanel.activeSelf)
+                || (splashPanel != null && splashPanel.activeSelf)
                 || (riverMarketHUD != null && (riverMarketHUD.IsUpgradeOpen || riverMarketHUD.IsNewsOpen || riverMarketHUD.IsNpcTradeOpen));
 
             if (isUIActive)
@@ -1703,6 +1629,29 @@ namespace ChoNoi.UI
             if (FindAnyObjectByType<EventSystem>() != null) return;
             GameObject eventSystemObject = new GameObject("EventSystem", typeof(EventSystem));
             eventSystemObject.AddComponent<InputSystemUIInputModule>();
+        }
+
+        private static TMP_Text GetTextComponent(Component component)
+        {
+            return component != null ? component.GetComponent<TMP_Text>() : null;
+        }
+
+        private static TMP_Text FindTextComponent(Transform parent, string childName)
+        {
+            if (parent == null)
+                return null;
+
+            Transform child = parent.Find(childName);
+            return child != null ? child.GetComponent<TMP_Text>() : null;
+        }
+
+        private static void SetTextValue(Component component, string value)
+        {
+            TMP_Text text = GetTextComponent(component);
+            if (text != null)
+            {
+                text.text = value;
+            }
         }
 
         private GameObject CreatePanel(string name, Transform parent, Color color)
@@ -1992,6 +1941,7 @@ namespace ChoNoi.UI
                 if (tradeQuantityPanel != null)
                 {
                     tradeQuantityPanel.SetActive(true);
+                    tradeQuantityPanel.transform.SetAsLastSibling();
                     tradeTitleText.text = "ĐỀ XUẤT GIÁ BÁN";
                     tradeItemInfoText.text = $"Mặt hàng: <b>{item.itemName}</b>\nSố lượng bán sỉ: {selectedTradeQty} quả | Giá gốc: {item.basePrice:N0} VNĐ";
 
@@ -2023,6 +1973,7 @@ namespace ChoNoi.UI
                 if (tradeQuantityPanel != null)
                 {
                     tradeQuantityPanel.SetActive(true);
+                    tradeQuantityPanel.transform.SetAsLastSibling();
                     tradeTitleText.text = isBuying ? "THU MUA NÔNG SẢN" : (isWholesale ? "BÁN SỈ NÔNG SẢN" : "BÁN LẺ NÔNG SẢN");
                     tradeItemInfoText.text = $"Mặt hàng: <b>{item.itemName}</b>\nĐơn giá: {item.basePrice:N0} VNĐ/sp | Cân nặng: {item.weight} kg/sp";
 
@@ -2344,6 +2295,7 @@ namespace ChoNoi.UI
             if (boatYardPanel != null)
             {
                 boatYardPanel.SetActive(true);
+                boatYardPanel.transform.SetAsLastSibling();
                 RefreshBoatYardUI();
             }
         }
@@ -2369,7 +2321,11 @@ namespace ChoNoi.UI
                 yardDurabilitySlider.value = durability.CurrentDurability;
 
                 int repairCost = GetRepairCostOnVendor();
-                yardRepairButton.GetComponentInChildren<Text>().text = $"SỬA CHỮA GHE\n({repairCost:N0} VNĐ)";
+                TMP_Text repairLabel = yardRepairButton != null ? yardRepairButton.GetComponentInChildren<TMP_Text>() : null;
+                if (repairLabel != null)
+                {
+                    repairLabel.text = $"SỬA CHỮA GHE\n({repairCost:N0} VNĐ)";
+                }
                 yardRepairButton.interactable = durability.CurrentDurability < durability.MaxDurability && playerStats.CurrentMoney >= repairCost;
             }
 
@@ -2576,7 +2532,11 @@ namespace ChoNoi.UI
             {
                 continueBtn.interactable = false;
                 continueBtn.GetComponent<Graphic>().color = new Color(0.3f, 0.3f, 0.3f, 0.5f);
-                continueBtn.transform.Find("Label").GetComponent<Text>().color = Color.gray;
+                TMP_Text continueLabel = FindTextComponent(continueBtn.transform, "Label");
+                if (continueLabel != null)
+                {
+                    continueLabel.color = Color.gray;
+                }
             }
 
             CreateActionButton(homePanel.transform, "Cài Đặt", new Vector2(0.38f, 0.23f), new Vector2(0.62f, 0.31f), ToggleSettings);
@@ -2595,11 +2555,11 @@ namespace ChoNoi.UI
         private System.Collections.IEnumerator SplashSequence()
         {
             float elapsed = 0f;
-            Text startHint = null;
+            TMP_Text startHint = null;
             if (splashPanel != null)
             {
                 var tr = splashPanel.transform.Find("StartHint");
-                if (tr != null) startHint = tr.GetComponent<Text>();
+                if (tr != null) startHint = tr.GetComponent<TMP_Text>();
             }
             
             while (elapsed < 2.5f)
@@ -2695,9 +2655,44 @@ namespace ChoNoi.UI
         {
             if (topTutorialButton != null) topTutorialButton.gameObject.SetActive(active);
             if (topSettingsButton != null) topSettingsButton.gameObject.SetActive(active);
+            DisableLegacyHudOverlays();
             if (riverMarketHUD != null)
             {
                 riverMarketHUD.SetCanvasActive(active);
+            }
+        }
+
+        private void DisableLegacyHudOverlays()
+        {
+            var legacyHuds = FindObjectsByType<HUDController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var legacyHud in legacyHuds)
+            {
+                if (legacyHud == null)
+                    continue;
+
+                legacyHud.enabled = false;
+                legacyHud.gameObject.SetActive(false);
+            }
+
+            if (masterCanvasInstance == null)
+                return;
+
+            Transform hudRoot = masterCanvasInstance.transform.Find("HUD");
+            if (hudRoot != null)
+            {
+                hudRoot.gameObject.SetActive(false);
+            }
+
+            Transform timePanel = masterCanvasInstance.transform.Find("HUD/TimePanel");
+            if (timePanel != null)
+            {
+                timePanel.gameObject.SetActive(false);
+            }
+
+            Transform moneyPanel = masterCanvasInstance.transform.Find("HUD/MoneyPanel");
+            if (moneyPanel != null)
+            {
+                moneyPanel.gameObject.SetActive(false);
             }
         }
 
@@ -2738,9 +2733,9 @@ namespace ChoNoi.UI
                     else levelStr = "HIGH";
                 }
                 
-                graphicsSettingButton.transform.Find("Label").GetComponent<Text>().text = currentLanguage == "vi"
+                SetTextValue(FindTextComponent(graphicsSettingButton.transform, "Label"), currentLanguage == "vi"
                     ? $"Đồ Họa: {levelStr}"
-                    : $"Graphics: {levelStr}";
+                    : $"Graphics: {levelStr}");
             }
         }
 
@@ -2757,9 +2752,9 @@ namespace ChoNoi.UI
             if (languageSettingButton != null)
             {
                 string langStr = currentLanguage == "vi" ? "TIẾNG VIỆT" : "ENGLISH";
-                languageSettingButton.transform.Find("Label").GetComponent<Text>().text = currentLanguage == "vi"
+                SetTextValue(FindTextComponent(languageSettingButton.transform, "Label"), currentLanguage == "vi"
                     ? $"Ngôn Ngữ: {langStr}"
-                    : $"Language: {langStr}";
+                    : $"Language: {langStr}");
             }
         }
 
@@ -2779,7 +2774,7 @@ namespace ChoNoi.UI
             if (settingsPanel != null)
             {
                 Transform title = settingsPanel.transform.Find("Title");
-                if (title != null) title.GetComponent<Text>().text = currentLanguage == "vi" ? "CÀI ĐẶT" : "SETTINGS";
+                SetTextValue(title, currentLanguage == "vi" ? "CÀI ĐẶT" : "SETTINGS");
                 
                 if (volumeLabelText != null)
                 {
@@ -2795,14 +2790,14 @@ namespace ChoNoi.UI
                 if (closeBtn != null)
                 {
                     closeBtn.name = currentLanguage == "vi" ? "Đóng" : "Close";
-                    closeBtn.transform.Find("Label").GetComponent<Text>().text = currentLanguage == "vi" ? "Đóng" : "Close";
+                    SetTextValue(FindTextComponent(closeBtn, "Label"), currentLanguage == "vi" ? "Đóng" : "Close");
                 }
             }
 
             if (pausePanel != null)
             {
                 Transform title = pausePanel.transform.Find("Title");
-                if (title != null) title.GetComponent<Text>().text = currentLanguage == "vi" ? "TẠM DỪNG" : "PAUSED";
+                SetTextValue(title, currentLanguage == "vi" ? "TẠM DỪNG" : "PAUSED");
 
                 string[] viLabels = { "Tiếp Tục", "Cài Đặt", "Quay Lại Trang Chủ", "Thoát Game" };
                 string[] enLabels = { "Resume", "Settings", "Main Menu", "Quit Game" };
@@ -2814,7 +2809,7 @@ namespace ChoNoi.UI
                     if (btn != null)
                     {
                         btn.name = currentLanguage == "vi" ? viLabels[i] : enLabels[i];
-                        btn.transform.Find("Label").GetComponent<Text>().text = currentLanguage == "vi" ? viLabels[i] : enLabels[i];
+                        SetTextValue(FindTextComponent(btn, "Label"), currentLanguage == "vi" ? viLabels[i] : enLabels[i]);
                     }
                 }
             }
@@ -2822,20 +2817,21 @@ namespace ChoNoi.UI
             if (tutorialPanel != null)
             {
                 Transform title = tutorialPanel.transform.Find("Title");
-                if (title != null) title.GetComponent<Text>().text = currentLanguage == "vi" ? "HƯỚNG DẪN CHƠI" : "HOW TO PLAY";
+                SetTextValue(title, currentLanguage == "vi" ? "HƯỚNG DẪN CHƠI" : "HOW TO PLAY");
                 
                 Transform body = tutorialPanel.transform.Find("Body");
-                if (body != null)
+                TMP_Text bodyText = GetTextComponent(body);
+                if (bodyText != null)
                 {
-                    body.GetComponent<Text>().text = currentLanguage == "vi"
-                        ? "1. Bình Minh (3AM - 10AM): Lái ghe ra chợ, treo hàng lên Cây Bẹo để bán lẻ/sỉ.\n\n" +
-                          "2. Trả Giá: Sử dụng thể lực để Nói Ngọt hoặc tốn hàng để Tặng Quà nâng thiện cảm.\n\n" +
-                          "3. Chiều Tà (1PM - 6PM): Vào rạch nhỏ thu mua nông sản giá gốc hoặc về Trại Ghe.\n\n" +
-                          "4. Nâng Cấp: Mở rộng khoang chứa, nâng cấp động cơ và lắp mái che."
-                        : "1. Dawn (3AM - 10AM): Sail your boat to the market, hang crops on the Bamboo Pole to sell.\n\n" +
-                          "2. Bargain: Spend stamina to Sweet Talk or give items as Gifts to raise affinity.\n\n" +
-                          "3. Dusk (1PM - 6PM): Enter small canals to buy raw goods or return to the Boat Yard.\n\n" +
-                          "4. Upgrade: Expand cargo storage, upgrade engines, and install roofs.";
+                    bodyText.text = currentLanguage == "vi"
+                        ? "1. Bình Minh (4AM - 11AM): Lái ghe ra chợ, treo hàng lên Cây Bẹo để gọi đúng khách mua.\n\n" +
+                          "2. Giao Thương: Áp sát thuyền khách rồi nhấn E để mặc cả hoặc trò chuyện.\n\n" +
+                          "3. Chiều Tà (11AM - 6PM): Đi thu mua nông sản giá gốc hoặc ghé Trại Ghe để sửa, nâng cấp.\n\n" +
+                          "4. Cuối Ngày: Về bến nhà trước 20:00 để ngủ an toàn, tránh bị phạt neo đậu muộn."
+                        : "1. Dawn (4AM - 11AM): Sail to the market and hang goods on the Bamboo Pole to attract matching buyers.\n\n" +
+                          "2. Trading: Pull alongside a boat and press E to bargain or chat.\n\n" +
+                          "3. Dusk (11AM - 6PM): Buy raw produce at source prices or visit the Boat Yard for repairs and upgrades.\n\n" +
+                          "4. End of Day: Return home before 20:00 to sleep safely and avoid the late docking fee.";
                 }
 
                 Transform closeBtn = tutorialPanel.transform.Find("Đóng");
@@ -2843,17 +2839,17 @@ namespace ChoNoi.UI
                 if (closeBtn != null)
                 {
                     closeBtn.name = currentLanguage == "vi" ? "Đóng" : "Close";
-                    closeBtn.transform.Find("Label").GetComponent<Text>().text = currentLanguage == "vi" ? "Đóng" : "Close";
+                    SetTextValue(FindTextComponent(closeBtn, "Label"), currentLanguage == "vi" ? "Đóng" : "Close");
                 }
             }
 
             if (marketingPanel != null)
             {
                 Transform title = marketingPanel.transform.Find("Title");
-                if (title != null) title.GetComponent<Text>().text = currentLanguage == "vi" ? "QUẢN LÝ KHOANG THUYỀN & CÂY BẸO" : "CARGO & BAMBOO POLE";
+                SetTextValue(title, currentLanguage == "vi" ? "QUẢN LÝ KHOANG THUYỀN & CÂY BẸO" : "CARGO & BAMBOO POLE");
 
-                if (tabButton1 != null) tabButton1.transform.Find("Label").GetComponent<Text>().text = currentLanguage == "vi" ? "KHOANG THUYỀN" : "CARGO BAY";
-                if (tabButton2 != null) tabButton2.transform.Find("Label").GetComponent<Text>().text = currentLanguage == "vi" ? "CÂY BẸO" : "BAMBOO POLE";
+                if (tabButton1 != null) SetTextValue(FindTextComponent(tabButton1.transform, "Label"), currentLanguage == "vi" ? "KHOANG THUYỀN" : "CARGO BAY");
+                if (tabButton2 != null) SetTextValue(FindTextComponent(tabButton2.transform, "Label"), currentLanguage == "vi" ? "CÂY BẸO" : "BAMBOO POLE");
             }
         }
 
@@ -2970,7 +2966,7 @@ namespace ChoNoi.UI
                     Transform labelTr = continueBtn.transform.Find("Label");
                     if (labelTr != null)
                     {
-                        Text lbl = labelTr.GetComponent<Text>();
+                        TMP_Text lbl = labelTr.GetComponent<TMP_Text>();
                         if (lbl != null) lbl.color = hasSave ? Color.white : Color.gray;
                     }
                 }

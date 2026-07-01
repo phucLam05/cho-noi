@@ -367,8 +367,8 @@ namespace ChoNoiMienTay.UI
         {
             hudText.text =
                 $"Tiền: {playerStats.CurrentMoney:N0} VNĐ    " +
-                $"Thể lực: {playerStats.CurrentStamina:0}/{playerStats.MaxStamina:0}    " +
-                $"Stamina / lượt mặc cả: {bargainingSystem.EconomyConfig.StaminaCostPerNegotiation}";
+                $"Hàng trong ghe: {inventoryManager.Inventory.Count} loại    " +
+                $"Tải trọng: {inventoryManager.CurrentTotalWeight:0}/{inventoryManager.MaxWeightCapacity:0} kg";
         }
 
         private void UpdateInventoryTexts()

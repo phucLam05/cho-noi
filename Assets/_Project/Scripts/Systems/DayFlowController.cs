@@ -10,6 +10,7 @@ using ChoNoi.Presentation.Player;
 using ChoNoiMienTay.Presentation;
 using ChoNoiMienTay.UI;
 using ChoNoi.UI;
+using TMPro;
 
 namespace ChoNoi.Systems
 {
@@ -24,13 +25,15 @@ namespace ChoNoi.Systems
         [Header("Home Pier Area Settings")]
         [SerializeField] private Vector3 homePierCenter = new Vector3(104f, 3.75f, 30f);
         [SerializeField] private float homeInteractionRadius = 15f;
+        [SerializeField] private int dailyUpkeepFee = 2000;
+        [SerializeField] private int lateDockingFee = 5000;
+        [SerializeField] private int forcedSleepHour = 20;
 
         private RiverMarketHUD riverMarketHUD;
         private FullSimulatorUI fullSimulatorUI;
-
-        private float nightWarningTimer;
         private GameObject summaryPanel;
         private bool isSummaryOpen;
+        private bool lateSleepTriggered;
 
         private void Start()
         {
@@ -46,8 +49,6 @@ namespace ChoNoi.Systems
             {
                 timeManager.OnPhaseChanged += HandlePhaseChanged;
             }
-
-            nightWarningTimer = 30f; // Warn every 30s
         }
 
         private void OnDestroy()
@@ -62,14 +63,13 @@ namespace ChoNoi.Systems
         {
             if (timeManager == null || isSummaryOpen) return;
 
-            // Handle night phase specifics
-            if (timeManager.CurrentPhase == GamePhase.Night)
+            // gameplay_v2: evening handling starts from 18:00 and curfew hits after 20:00.
+            if (timeManager.CurrentPhase == GamePhase.Dusk || timeManager.CurrentPhase == GamePhase.Night)
             {
-                HandleNightPhase();
+                HandleEveningPhase();
             }
             else
             {
-                // Hide home prompt if not night
                 HideHomePrompt();
             }
         }
@@ -82,15 +82,16 @@ namespace ChoNoi.Systems
                 case GamePhase.Dawn:
                     msg = "Hừng đông lên rồi! Treo nông sản lên Cây Bẹo (B) để gọi khách đến mua.";
                     ResetAllNpcTradeStates();
+                    lateSleepTriggered = false;
                     break;
                 case GamePhase.Day:
-                    msg = "Mặt trời lên cao, chợ tan rồi. Hãy chèo vào các kênh rạch thu mua nông sản hoặc sửa ghe.";
+                    msg = "11 giờ rồi, chợ sáng khép lại. Hãy tranh thủ thu mua hàng và sửa ghe trước chiều tối.";
                     break;
                 case GamePhase.Dusk:
-                    msg = "Chiều tà rồi. Hãy chuẩn bị dọn dẹp hàng và lái ghe về bến nhà.";
+                    msg = "Hoàng hôn xuống rồi. Từ nay đến 20:00 hãy lái ghe về bến nhà để ngủ miễn phí.";
                     break;
                 case GamePhase.Night:
-                    msg = "Trời tối nguy hiểm! Hãy chèo ghe về Bến Nhà để ngủ nghỉ qua ngày mới.";
+                    msg = "Quá giờ 20:00. Nếu còn neo ngoài luồng, bạn sẽ bị đội tuần tra áp phí và cưỡng chế ngủ.";
                     break;
             }
 
@@ -107,21 +108,27 @@ namespace ChoNoi.Systems
             Debug.Log("[DayFlowController] Reset trade state for all NPCs.");
         }
 
-        private void HandleNightPhase()
+        private void HandleEveningPhase()
         {
             GameObject playerBoat = GameObject.Find("PlayerBoat");
             if (playerBoat == null) return;
 
             float distToHome = Vector3.Distance(playerBoat.transform.position, homePierCenter);
+            bool isAtHome = distToHome <= homeInteractionRadius;
+            bool isPastCurfew = timeManager.CurrentHour >= forcedSleepHour;
 
-            if (distToHome <= homeInteractionRadius)
+            if (isPastCurfew && !isAtHome)
             {
-                // Player is near home. Prompt to sleep
+                ForceLateSleep();
+                return;
+            }
+
+            if (isAtHome)
+            {
                 ShowHomePrompt();
 
                 if (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.eKey.wasPressedThisFrame)
                 {
-                    // Check if any UI is currently open. If so, don't open sleep
                     if (fullSimulatorUI != null && (fullSimulatorUI.IsDialogueOpen || fullSimulatorUI.IsMarketingOpen || fullSimulatorUI.IsYardOpen))
                     {
                         return;
@@ -133,63 +140,28 @@ namespace ChoNoi.Systems
             else
             {
                 HideHomePrompt();
-
-                // Stamina penalty out at night
-                nightWarningTimer -= Time.deltaTime;
-                if (nightWarningTimer <= 0f)
-                {
-                    nightWarningTimer = 30f;
-                    if (playerStats != null)
-                    {
-                        playerStats.ConsumeStamina(2f);
-                        ShowNotification("Đi đêm ngoài sông lớn hao tổn sức lực! (-2 Thể lực)");
-
-                        if (playerStats.CurrentStamina <= 0f)
-                        {
-                            FaintPenalty();
-                        }
-                    }
-                }
             }
         }
 
-        private void FaintPenalty()
+        private void ForceLateSleep()
         {
-            ShowNotification("Bạn kiệt sức và ngất đi! Dân làng chèo ghe đưa bạn về nhà. (-5,000 VNĐ)");
-            
+            if (lateSleepTriggered)
+                return;
+
+            lateSleepTriggered = true;
+            ShowNotification("Trời tối muộn nguy hiểm! Đội tuần tra đường sông đã dắt ghe bạn về bến và thu phí neo đậu ngoài luồng. (-5,000 VNĐ)");
+
             var economy = FindAnyObjectByType<EconomyManager>();
             if (economy != null)
             {
-                economy.RecordLateFee(5000);
+                economy.RecordLateFee(lateDockingFee);
             }
             else if (playerStats != null)
             {
-                playerStats.DeductMoney(5000);
+                playerStats.DeductMoney(lateDockingFee);
             }
 
-            if (playerStats != null)
-            {
-                playerStats.RestoreStamina(30f); // Restores some stamina
-            }
-
-            if (durabilityManager != null)
-            {
-                durabilityManager.ReduceDurability(10f); // Damage boat slightly
-            }
-
-            // Teleport boat back home
-            GameObject playerBoat = GameObject.Find("PlayerBoat");
-            if (playerBoat != null)
-            {
-                playerBoat.transform.position = new Vector3(118f, 3.75f, 34f);
-                var rb = playerBoat.GetComponent<Rigidbody>();
-                if (rb != null)
-                {
-                    rb.linearVelocity = Vector3.zero;
-                    rb.angularVelocity = Vector3.zero;
-                }
-            }
-
+            ReturnBoatHome();
             TriggerSleepSummary();
         }
 
@@ -276,13 +248,11 @@ namespace ChoNoi.Systems
 
             int day = timeManager != null ? timeManager.CurrentDay : 1;
             string money = playerStats != null ? playerStats.CurrentMoney.ToString("N0") : "0";
-            string stamina = playerStats != null ? $"{playerStats.CurrentStamina:0}/{playerStats.MaxStamina:0}" : "0/0";
             string durability = durabilityManager != null ? $"{durabilityManager.CurrentDurability:0}/{durabilityManager.MaxDurability:0}" : "0/0";
 
             contentTxt.text = $"\n\n<b>Kết thúc Ngày {day}</b>\n\n" +
                                $"Số dư tài khoản: <color=#ffd700><b>{money} VNĐ</b></color>\n\n" +
                                $"Độ bền ghe còn lại: <b>{durability}</b>\n\n" +
-                               $"Thể lực hiện tại: <b>{stamina}</b>\n\n" +
                                $"<i>Hệ thống đã tự động lưu dữ liệu trò chơi.</i>";
 
             RectTransform contentRt = contentObj.GetComponent<RectTransform>();
@@ -338,19 +308,19 @@ namespace ChoNoi.Systems
             var economy = FindAnyObjectByType<EconomyManager>();
             if (economy != null)
             {
+                economy.RecordLateFee(dailyUpkeepFee);
                 economy.ResetDailyMetrics();
+            }
+            else if (playerStats != null)
+            {
+                playerStats.DeductMoney(dailyUpkeepFee);
             }
 
             if (timeManager != null)
             {
                 timeManager.Sleep(); // advances day and triggers auto-save
             }
-
-            // Restore some stamina automatically on sleep
-            if (playerStats != null)
-            {
-                playerStats.RestoreStamina(80f);
-            }
+            lateSleepTriggered = false;
 
             // Release player movement if not on boat
             var boarding = FindAnyObjectByType<BoatBoardingController>();
@@ -373,6 +343,21 @@ namespace ChoNoi.Systems
             ShowNotification("Ngày mới bắt đầu! Hãy chèo ghe ra ngã ba sông bán hàng.");
         }
 
+        private void ReturnBoatHome()
+        {
+            GameObject playerBoat = GameObject.Find("PlayerBoat");
+            if (playerBoat == null)
+                return;
+
+            playerBoat.transform.position = new Vector3(118f, 3.75f, 34f);
+            var rb = playerBoat.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
+        }
+
         private void ShowHomePrompt()
         {
             if (fullSimulatorUI != null)
@@ -382,7 +367,7 @@ namespace ChoNoi.Systems
                 if (promptPanel != null)
                 {
                     promptPanel.gameObject.SetActive(true);
-                    var txt = promptPanel.GetComponentInChildren<Text>();
+                    var txt = promptPanel.GetComponentInChildren<TMP_Text>();
                     if (txt != null)
                     {
                         txt.text = "[E] Nghỉ ngơi\n(Đi Ngủ)";
@@ -402,7 +387,7 @@ namespace ChoNoi.Systems
                 var promptPanel = fullSimulatorUI.transform.Find("FullSimulatorCanvas/LeftPromptPanel");
                 if (promptPanel != null)
                 {
-                    var txt = promptPanel.GetComponentInChildren<Text>();
+                    var txt = promptPanel.GetComponentInChildren<TMP_Text>();
                     if (txt != null && txt.text.Contains("Nghỉ ngơi"))
                     {
                         promptPanel.gameObject.SetActive(false);

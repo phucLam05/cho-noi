@@ -34,8 +34,6 @@ namespace ChoNoiMienTay.UI
         [SerializeField] private TMP_Text interactionDescriptionText;
 
         [Header("Optional Stats Displays")]
-        [SerializeField] private Slider staminaBar;
-        [SerializeField] private TMP_Text staminaText;
         [SerializeField] private Slider durabilityBar;
         [SerializeField] private TMP_Text durabilityText;
         [SerializeField] private TMP_Text weightText;
@@ -91,7 +89,7 @@ namespace ChoNoiMienTay.UI
 
         private void Update()
         {
-            // Regularly update stats like Money, Stamina, Weight, Durability
+            // Regularly update visible stats like Money, Weight, and Durability.
             UpdateStats();
 
             var boarding = FindAnyObjectByType<BoatBoardingController>();
@@ -100,6 +98,31 @@ namespace ChoNoiMienTay.UI
             {
                 inventoryPrompt.SetActive(isBoarded);
             }
+
+            string interactionText = string.Empty;
+            bool showInteraction = false;
+
+            var interactor = FindAnyObjectByType<PlayerNpcTradeInteractor>();
+            if (interactor != null && interactor.CurrentTarget != null)
+            {
+                showInteraction = true;
+                interactionText = $"[E] Tương tác: {interactor.CurrentTarget.NpcDisplayName}";
+            }
+            else if (boarding != null)
+            {
+                if (isBoarded && boarding.CanDismountBoat)
+                {
+                    showInteraction = true;
+                    interactionText = "[E] Rời ghe";
+                }
+                else if (!isBoarded && boarding.CanBoardBoat)
+                {
+                    showInteraction = true;
+                    interactionText = "[E] Lên ghe";
+                }
+            }
+
+            SetInteractionPrompt(showInteraction, interactionText);
         }
 
         private void FindReferencesIfNeeded()
@@ -184,16 +207,6 @@ namespace ChoNoiMienTay.UI
                     }
                 }
 
-                // Update Stamina
-                if (staminaBar != null)
-                {
-                    staminaBar.maxValue = playerStats.MaxStamina;
-                    staminaBar.value = playerStats.CurrentStamina;
-                }
-                if (staminaText != null)
-                {
-                    staminaText.text = $"{playerStats.CurrentStamina:0}/{playerStats.MaxStamina:0}";
-                }
             }
 
             // Update Durability

@@ -17,9 +17,9 @@ namespace ChoNoiMienTay.UI
         [SerializeField] private string[] gameplayTips = new string[]
         {
             "Treo nông sản lên Cây Bẹo để thu hút nhiều thương lái ghé ghe của bạn hơn.",
-            "Hãy di chuyển về bến nhà trước 18:00 hàng ngày để ngủ, nếu không bạn sẽ bị phạt tiền vì cảm lạnh.",
+            "Hãy di chuyển về bến nhà trước 20:00 để ngủ, nếu không bạn sẽ bị phạt phí neo đậu muộn.",
             "Cọc gỗ WoodPost ở trại ghe phía Bắc là nơi giúp bạn sửa chữa và nâng cấp ghe buôn.",
-            "Trả giá với thương lái sẽ tiêu tốn thể lực. Hãy ăn bún riêu/cà phê từ các ghe bán dạo để phục hồi sức.",
+            "Nếu Cây Bẹo trống trong buổi sáng, thuyền khách sẽ lướt qua mà không ghé mua hàng.",
             "Thương lái lớn mua sỉ số lượng nhiều, còn dân làng mua lẻ giá cao nhưng số lượng ít."
         };
 

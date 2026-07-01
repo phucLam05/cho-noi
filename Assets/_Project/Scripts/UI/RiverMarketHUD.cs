@@ -57,7 +57,7 @@ namespace ChoNoiMienTay.UI
             BuildUIIfNeeded();
             if (canvas != null)
             {
-                canvas.gameObject.SetActive(false);
+                canvas.gameObject.SetActive(active);
             }
         }
 
@@ -161,14 +161,17 @@ namespace ChoNoiMienTay.UI
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
             scaler.matchWidthOrHeight = 0.5f;
 
-            GameObject topBar = CreatePanel("TopBar", canvasObject.transform, new Color(0f, 0f, 0f, 0.65f));
-            Stretch(topBar.GetComponent<RectTransform>(), new Vector2(0.02f, 0.90f), new Vector2(0.98f, 0.98f));
-            
-            statsText = CreateText("StatsText", topBar.transform, 24, TextAnchor.MiddleLeft);
-            Stretch(statsText.rectTransform, new Vector2(0.02f, 0.15f), new Vector2(0.60f, 0.85f));
+            GameObject dayTimePanel = CreatePanel("DayTimePanel", canvasObject.transform, new Color(0f, 0f, 0f, 0.65f));
+            Stretch(dayTimePanel.GetComponent<RectTransform>(), new Vector2(0.02f, 0.90f), new Vector2(0.24f, 0.98f));
 
-            timeText = CreateText("TimeText", topBar.transform, 24, TextAnchor.MiddleRight);
-            Stretch(timeText.rectTransform, new Vector2(0.70f, 0.15f), new Vector2(0.98f, 0.85f));
+            statsText = CreateText("DayTimeText", dayTimePanel.transform, 24, TextAnchor.MiddleCenter);
+            Stretch(statsText.rectTransform, new Vector2(0.06f, 0.15f), new Vector2(0.94f, 0.85f));
+
+            GameObject moneyPanel = CreatePanel("MoneyPanel", canvasObject.transform, new Color(0f, 0f, 0f, 0.65f));
+            Stretch(moneyPanel.GetComponent<RectTransform>(), new Vector2(0.76f, 0.90f), new Vector2(0.98f, 0.98f));
+
+            timeText = CreateText("MoneyText", moneyPanel.transform, 24, TextAnchor.MiddleCenter);
+            Stretch(timeText.rectTransform, new Vector2(0.06f, 0.15f), new Vector2(0.94f, 0.85f));
 
             upgradePanel = CreatePanel("UpgradePanel", canvasObject.transform, new Color(0.08f, 0.16f, 0.18f, 0.86f));
             Stretch(upgradePanel.GetComponent<RectTransform>(), new Vector2(0.02f, 0.08f), new Vector2(0.26f, 0.86f));
@@ -210,7 +213,7 @@ namespace ChoNoiMienTay.UI
             CreateActionButton(tradePanel.transform, "Mua 1", new Vector2(0.08f, 0.22f), new Vector2(0.44f, 0.30f), BuySelectedItem);
             CreateActionButton(tradePanel.transform, "Bán 1", new Vector2(0.56f, 0.22f), new Vector2(0.92f, 0.30f), SellSelectedItem);
             CreateActionButton(tradePanel.transform, "Sửa Ghe", new Vector2(0.08f, 0.10f), new Vector2(0.44f, 0.18f), RepairBoat);
-            CreateActionButton(tradePanel.transform, "Hồi Thể Lực", new Vector2(0.56f, 0.10f), new Vector2(0.92f, 0.18f), RestoreStamina);
+            CreateActionButton(tradePanel.transform, "Đóng", new Vector2(0.56f, 0.10f), new Vector2(0.92f, 0.18f), CloseAllPanels);
 
             newsPanel = CreatePanel("NewsPanel", canvasObject.transform, new Color(0.14f, 0.10f, 0.06f, 0.88f));
             Stretch(newsPanel.GetComponent<RectTransform>(), new Vector2(0.72f, 0.08f), new Vector2(0.98f, 0.44f));
@@ -339,11 +342,6 @@ namespace ChoNoiMienTay.UI
             bool isEn = FullSimulatorUI.CurrentLanguage == "en";
 
             string money = playerStats != null ? playerStats.CurrentMoney.ToString("N0") : "0";
-            string stamina = playerStats != null ? $"{playerStats.CurrentStamina:0}/{playerStats.MaxStamina:0}" : "0/0";
-            string durability = durabilityManager != null ? $"{durabilityManager.CurrentDurability:0}/{durabilityManager.MaxDurability:0}" : "0/0";
-            
-            float weight = inventoryManager != null ? inventoryManager.CurrentTotalWeight : 0f;
-            float maxWeight = inventoryManager != null ? inventoryManager.MaxWeightCapacity : 100f;
 
             string phaseName = isEn ? "Dawn" : "Bình Minh";
             if (timeManager != null)
@@ -361,10 +359,8 @@ namespace ChoNoiMienTay.UI
                 ? (isEn ? $"Day {timeManager.CurrentDay} | {phaseName} ({timeClock})" : $"Ngày {timeManager.CurrentDay} | {phaseName} ({timeClock})")
                 : (isEn ? $"Day 1 | Dawn (03:00)" : "Ngày 1 | Bình Minh (03:00)");
 
-            statsText.text = isEn 
-                ? $"Money: {money}đ | Stamina: {stamina} | Weight: {weight:0}/{maxWeight:0} kg | Durability: {durability}"
-                : $"Tiền: {money}đ | Thể lực: {stamina} | Tải trọng: {weight:0}/{maxWeight:0} kg | Độ bền: {durability}";
-            timeText.text = $"{dayPhase}";
+            statsText.text = dayPhase;
+            timeText.text = isEn ? $"{money} VND" : $"{money} VNĐ";
         }
 
         private void TranslateHUD()
@@ -393,8 +389,8 @@ namespace ChoNoiMienTay.UI
 
             if (tradePanel != null)
             {
-                string[] viTrades = { "Mặt Hàng Trước", "Mặt Hàng Sau", "Mua 1", "Bán 1", "Sửa Ghe", "Hồi Thể Lực" };
-                string[] enTrades = { "Prev Item", "Next Item", "Buy 1", "Sell 1", "Repair Boat", "Rest Stamina" };
+                string[] viTrades = { "Mặt Hàng Trước", "Mặt Hàng Sau", "Mua 1", "Bán 1", "Sửa Ghe", "Đóng" };
+                string[] enTrades = { "Prev Item", "Next Item", "Buy 1", "Sell 1", "Repair Boat", "Close" };
 
                 for (int i = 0; i < viTrades.Length; i++)
                 {
@@ -461,7 +457,7 @@ namespace ChoNoiMienTay.UI
                 $"{currentItem.itemName} ({currentItem.itemID})\n" +
                 $"Giá mua: {buyPrice:N0}đ | Giá bán: {sellPrice:N0}đ\n" +
                 $"Tồn kho: {currentOwned} | Nặng: {currentItem.weight:0.0} kg\n" +
-                $"Sửa ghe: {repairCost:N0}đ | Thể lực hồi: 8,000";
+                $"Sửa ghe: {repairCost:N0}đ | Gợi ý: Treo đúng mặt hàng lên Cây Bẹo để hút khách.";
         }
 
         private void RefreshNews()
@@ -541,20 +537,6 @@ namespace ChoNoiMienTay.UI
             repairService.durabilityRestoreAmount = 18f;
             economyManager.BuyService(repairService);
             Destroy(repairService);
-            RefreshAll();
-        }
-
-        private void RestoreStamina()
-        {
-            if (economyManager == null)
-                return;
-
-            ServiceData mealService = ScriptableObject.CreateInstance<ServiceData>();
-            mealService.serviceName = "Bun Nuoc Leo";
-            mealService.costMoney = 8000;
-            mealService.staminaRestoreAmount = 18f;
-            economyManager.BuyService(mealService);
-            Destroy(mealService);
             RefreshAll();
         }
 
