@@ -71,6 +71,14 @@ namespace ChoNoi.Presentation.Player
             }
         }
 
+        public bool CanBoardBoat => CanBoard();
+        public bool CanDismountBoat => CanDismount();
+
+        public void SetBoatControlActive(bool active)
+        {
+            SetBoatControl(active);
+        }
+
         private bool CanBoard()
         {
             if (boat == null)
@@ -85,7 +93,7 @@ namespace ChoNoi.Presentation.Player
                 return false;
 
             // Có thể tăng nhẹ khoảng cách cho phép xuống ghe để dễ thao tác hơn
-            return Vector3.Distance(boat.position, dismountPoint.position) <= interactDistance * 1.5f;
+            return Vector3.Distance(boat.position, dismountPoint.position) <= interactDistance * 2f;
         }
 
         private void BoardBoat()
@@ -93,6 +101,10 @@ namespace ChoNoi.Presentation.Player
             isBoarded = true;
             if (playerController != null)
                 playerController.CanMove = false;
+
+            CharacterController cc = GetComponent<CharacterController>();
+            if (cc != null)
+                cc.enabled = false;
 
             if (standPoint != null)
             {
@@ -114,6 +126,10 @@ namespace ChoNoi.Presentation.Player
             isBoarded = false;
             transform.SetParent(null, true);
 
+            CharacterController cc = GetComponent<CharacterController>();
+            if (cc != null)
+                cc.enabled = false;
+
             if (dismountPoint != null)
             {
                 transform.position = dismountPoint.position;
@@ -129,6 +145,48 @@ namespace ChoNoi.Presentation.Player
             SetBoatControl(false);
             if (followCamera != null)
                 followCamera.Configure(transform);
+
+        }
+
+        public void ResetToStartingState(Vector3 playerStartPos, Quaternion playerStartRot, Vector3 boatStartPos, Quaternion boatStartRot)
+        {
+            isBoarded = false;
+            transform.SetParent(null, true);
+
+            CharacterController cc = GetComponent<CharacterController>();
+            if (cc != null)
+                cc.enabled = false;
+
+            transform.position = playerStartPos;
+            transform.rotation = playerStartRot;
+
+            if (playerVisualRoot != null)
+                playerVisualRoot.gameObject.SetActive(true);
+
+            if (playerController != null)
+                playerController.CanMove = true;
+
+            SetBoatControl(false);
+
+            if (boat != null)
+            {
+                boat.position = boatStartPos;
+                boat.rotation = boatStartRot;
+                Rigidbody boatRb = boat.GetComponent<Rigidbody>();
+                if (boatRb != null)
+                {
+                    boatRb.linearVelocity = Vector3.zero;
+                    boatRb.angularVelocity = Vector3.zero;
+                }
+            }
+
+            if (followCamera != null)
+            {
+                followCamera.Configure(transform);
+            }
+
+            if (cc != null)
+                cc.enabled = true;
         }
 
         private void SetBoatControl(bool enabled)
@@ -139,6 +197,8 @@ namespace ChoNoi.Presentation.Player
                 boatInput.enabled = enabled;
         }
 
+        // Commented out OnGUI to avoid overlap with Canvas side prompts
+        /*
         private void OnGUI()
         {
             const int width = 450;
@@ -155,5 +215,6 @@ namespace ChoNoi.Presentation.Player
                 GUI.Box(rect, "E: Len ghe | WASD: Di chuyen tren bo");
             }
         }
+        */
     }
 }

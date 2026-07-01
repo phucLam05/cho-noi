@@ -9,6 +9,32 @@ namespace ChoNoiMienTay.Presentation
         [Header("References")]
         public PlayerStats playerStats;
         public DurabilityManager durabilityManager;
+
+        [Header("Daily Tracking")]
+        [SerializeField] private int dailyIncome = 0;
+        [SerializeField] private int dailyRepairCost = 0;
+        [SerializeField] private int dailyLateFee = 0;
+
+        public int DailyIncome => dailyIncome;
+        public int DailyRepairCost => dailyRepairCost;
+        public int DailyLateFee => dailyLateFee;
+
+        public void ResetDailyMetrics()
+        {
+            dailyIncome = 0;
+            dailyRepairCost = 0;
+            dailyLateFee = 0;
+        }
+
+        public void RecordLateFee(int amount)
+        {
+            dailyLateFee += amount;
+            // Deduct from playerStats too
+            if (playerStats != null)
+            {
+                playerStats.DeductMoney(amount);
+            }
+        }
         
         private void Awake()
         {
@@ -48,6 +74,12 @@ namespace ChoNoiMienTay.Presentation
                     else
                     {
                         Debug.LogWarning("[EconomyManager] Khong tim thay DurabilityManager de sua ghe.");
+                    }
+
+                    // Track repair cost
+                    if (service.serviceName.ToLower().Contains("sua") || service.serviceName.ToLower().Contains("repair"))
+                    {
+                        dailyRepairCost += service.costMoney;
                     }
                 }
 
@@ -102,6 +134,7 @@ namespace ChoNoiMienTay.Presentation
             {
                 // Trừ đồ thành công thì cộng tiền chốt đơn
                 playerStats.AddMoney(finalTotalRevenue);
+                dailyIncome += finalTotalRevenue;
                 Debug.Log($"[EconomyManager] Đã CHỐT ĐƠN BÁN {amount}x {item.itemName} thu về {finalTotalRevenue:N0} VNĐ");
                 return true;
             }

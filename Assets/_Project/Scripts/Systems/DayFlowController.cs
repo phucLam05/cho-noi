@@ -1,0 +1,411 @@
+using System.Collections;
+using UnityEngine;
+using UnityEngine.UI;
+using ChoNoi.Application;
+using ChoNoi.Domain;
+using ChoNoi.Infrastructure;
+using ChoNoi.Presentation;
+using ChoNoi.Presentation.NPC;
+using ChoNoi.Presentation.Player;
+using ChoNoiMienTay.Presentation;
+using ChoNoiMienTay.UI;
+using ChoNoi.UI;
+using TMPro;
+
+namespace ChoNoi.Systems
+{
+    public class DayFlowController : MonoBehaviour
+    {
+        [Header("References")]
+        [SerializeField] private TimeManager timeManager;
+        [SerializeField] private PlayerStats playerStats;
+        [SerializeField] private DurabilityManager durabilityManager;
+        [SerializeField] private SaveLoadManager saveLoadManager;
+
+        [Header("Home Pier Area Settings")]
+        [SerializeField] private Vector3 homePierCenter = new Vector3(104f, 3.75f, 30f);
+        [SerializeField] private float homeInteractionRadius = 15f;
+        [SerializeField] private int dailyUpkeepFee = 2000;
+        [SerializeField] private int lateDockingFee = 5000;
+        [SerializeField] private int forcedSleepHour = 20;
+
+        private RiverMarketHUD riverMarketHUD;
+        private FullSimulatorUI fullSimulatorUI;
+        private GameObject summaryPanel;
+        private bool isSummaryOpen;
+        private bool lateSleepTriggered;
+
+        private void Start()
+        {
+            if (timeManager == null) timeManager = FindAnyObjectByType<TimeManager>();
+            if (playerStats == null) playerStats = FindAnyObjectByType<PlayerStats>();
+            if (durabilityManager == null) durabilityManager = FindAnyObjectByType<DurabilityManager>();
+            if (saveLoadManager == null) saveLoadManager = FindAnyObjectByType<SaveLoadManager>();
+            
+            riverMarketHUD = FindAnyObjectByType<RiverMarketHUD>();
+            fullSimulatorUI = FindAnyObjectByType<FullSimulatorUI>();
+
+            if (timeManager != null)
+            {
+                timeManager.OnPhaseChanged += HandlePhaseChanged;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (timeManager != null)
+            {
+                timeManager.OnPhaseChanged -= HandlePhaseChanged;
+            }
+        }
+
+        private void Update()
+        {
+            if (timeManager == null || isSummaryOpen) return;
+
+            // gameplay_v2: evening handling starts from 18:00 and curfew hits after 20:00.
+            if (timeManager.CurrentPhase == GamePhase.Dusk || timeManager.CurrentPhase == GamePhase.Night)
+            {
+                HandleEveningPhase();
+            }
+            else
+            {
+                HideHomePrompt();
+            }
+        }
+
+        private void HandlePhaseChanged(GamePhase phase)
+        {
+            string msg = "";
+            switch (phase)
+            {
+                case GamePhase.Dawn:
+                    msg = "Hừng đông lên rồi! Treo nông sản lên Cây Bẹo (B) để gọi khách đến mua.";
+                    ResetAllNpcTradeStates();
+                    lateSleepTriggered = false;
+                    break;
+                case GamePhase.Day:
+                    msg = "11 giờ rồi, chợ sáng khép lại. Hãy tranh thủ thu mua hàng và sửa ghe trước chiều tối.";
+                    break;
+                case GamePhase.Dusk:
+                    msg = "Hoàng hôn xuống rồi. Từ nay đến 20:00 hãy lái ghe về bến nhà để ngủ miễn phí.";
+                    break;
+                case GamePhase.Night:
+                    msg = "Quá giờ 20:00. Nếu còn neo ngoài luồng, bạn sẽ bị đội tuần tra áp phí và cưỡng chế ngủ.";
+                    break;
+            }
+
+            ShowNotification(msg);
+        }
+
+        private void ResetAllNpcTradeStates()
+        {
+            var npcTargets = FindObjectsByType<NpcTradeTarget>(FindObjectsSortMode.None);
+            foreach (var npc in npcTargets)
+            {
+                npc.HasTraded = false;
+            }
+            Debug.Log("[DayFlowController] Reset trade state for all NPCs.");
+        }
+
+        private void HandleEveningPhase()
+        {
+            GameObject playerBoat = GameObject.Find("PlayerBoat");
+            if (playerBoat == null) return;
+
+            float distToHome = Vector3.Distance(playerBoat.transform.position, homePierCenter);
+            bool isAtHome = distToHome <= homeInteractionRadius;
+            bool isPastCurfew = timeManager.CurrentHour >= forcedSleepHour;
+
+            if (isPastCurfew && !isAtHome)
+            {
+                ForceLateSleep();
+                return;
+            }
+
+            if (isAtHome)
+            {
+                ShowHomePrompt();
+
+                if (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.eKey.wasPressedThisFrame)
+                {
+                    if (fullSimulatorUI != null && (fullSimulatorUI.IsDialogueOpen || fullSimulatorUI.IsMarketingOpen || fullSimulatorUI.IsYardOpen))
+                    {
+                        return;
+                    }
+                    
+                    TriggerSleepSummary();
+                }
+            }
+            else
+            {
+                HideHomePrompt();
+            }
+        }
+
+        private void ForceLateSleep()
+        {
+            if (lateSleepTriggered)
+                return;
+
+            lateSleepTriggered = true;
+            ShowNotification("Trời tối muộn nguy hiểm! Đội tuần tra đường sông đã dắt ghe bạn về bến và thu phí neo đậu ngoài luồng. (-5,000 VNĐ)");
+
+            var economy = FindAnyObjectByType<EconomyManager>();
+            if (economy != null)
+            {
+                economy.RecordLateFee(lateDockingFee);
+            }
+            else if (playerStats != null)
+            {
+                playerStats.DeductMoney(lateDockingFee);
+            }
+
+            ReturnBoatHome();
+            TriggerSleepSummary();
+        }
+
+        private void TriggerSleepSummary()
+        {
+            isSummaryOpen = true;
+            Time.timeScale = 0f; // Pause game
+
+            HideHomePrompt();
+
+            // Lock controls
+            var playerController = FindAnyObjectByType<ShorePlayerController>();
+            if (playerController != null) playerController.CanMove = false;
+
+            var boarding = FindAnyObjectByType<BoatBoardingController>();
+            if (boarding != null) boarding.SetBoatControlActive(false);
+
+            Cursor.visible = true;
+            Cursor.lockState = CursorLockMode.None;
+
+            var daySummaryUI = FindAnyObjectByType<DaySummaryUI>();
+            if (daySummaryUI != null)
+            {
+                var economy = FindAnyObjectByType<EconomyManager>();
+                daySummaryUI.Open(economy, timeManager, ContinueToNextDay);
+            }
+            else
+            {
+                BuildAndShowSummaryPanel();
+            }
+        }
+
+        private void BuildAndShowSummaryPanel()
+        {
+            Canvas canvas = FindAnyObjectByType<Canvas>();
+            if (canvas == null) return;
+
+            summaryPanel = new GameObject("DayEndSummaryPanel", typeof(RectTransform), typeof(Image));
+            summaryPanel.transform.SetParent(canvas.transform, false);
+
+            RectTransform rt = summaryPanel.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.2f, 0.15f);
+            rt.anchorMax = new Vector2(0.8f, 0.85f);
+            rt.offsetMin = rt.offsetMax = Vector2.zero;
+
+            summaryPanel.GetComponent<Image>().color = new Color(0.06f, 0.08f, 0.1f, 0.95f);
+
+            // Add Border / Frame
+            GameObject border = new GameObject("Border", typeof(RectTransform), typeof(Image));
+            border.transform.SetParent(summaryPanel.transform, false);
+            RectTransform borderRt = border.GetComponent<RectTransform>();
+            borderRt.anchorMin = Vector2.zero;
+            borderRt.anchorMax = Vector2.one;
+            borderRt.offsetMin = new Vector2(10f, 10f);
+            borderRt.offsetMax = new Vector2(-10f, -10f);
+            border.GetComponent<Image>().color = new Color(0.12f, 0.16f, 0.2f, 0.4f);
+
+            // Font loading
+            Font font = FontHelper.GameBoldFont;
+            Font regularFont = FontHelper.GameFont;
+
+            // Title
+            GameObject titleObj = new GameObject("Title", typeof(RectTransform), typeof(Text));
+            titleObj.transform.SetParent(summaryPanel.transform, false);
+            Text titleTxt = titleObj.GetComponent<Text>();
+            titleTxt.font = font;
+            titleTxt.fontSize = 42;
+            titleTxt.color = new Color(0.92f, 0.82f, 0.55f, 1f); // Gold
+            titleTxt.alignment = TextAnchor.MiddleCenter;
+            titleTxt.text = "TỔNG KẾT NGÀY";
+            RectTransform titleRt = titleObj.GetComponent<RectTransform>();
+            titleRt.anchorMin = new Vector2(0.05f, 0.82f);
+            titleRt.anchorMax = new Vector2(0.95f, 0.95f);
+            titleRt.offsetMin = titleRt.offsetMax = Vector2.zero;
+
+            // Content
+            GameObject contentObj = new GameObject("Content", typeof(RectTransform), typeof(Text));
+            contentObj.transform.SetParent(summaryPanel.transform, false);
+            Text contentTxt = contentObj.GetComponent<Text>();
+            contentTxt.font = regularFont;
+            contentTxt.fontSize = 24;
+            contentTxt.color = Color.white;
+            contentTxt.alignment = TextAnchor.UpperCenter;
+
+            int day = timeManager != null ? timeManager.CurrentDay : 1;
+            string money = playerStats != null ? playerStats.CurrentMoney.ToString("N0") : "0";
+            string durability = durabilityManager != null ? $"{durabilityManager.CurrentDurability:0}/{durabilityManager.MaxDurability:0}" : "0/0";
+
+            contentTxt.text = $"\n\n<b>Kết thúc Ngày {day}</b>\n\n" +
+                               $"Số dư tài khoản: <color=#ffd700><b>{money} VNĐ</b></color>\n\n" +
+                               $"Độ bền ghe còn lại: <b>{durability}</b>\n\n" +
+                               $"<i>Hệ thống đã tự động lưu dữ liệu trò chơi.</i>";
+
+            RectTransform contentRt = contentObj.GetComponent<RectTransform>();
+            contentRt.anchorMin = new Vector2(0.05f, 0.25f);
+            contentRt.anchorMax = new Vector2(0.95f, 0.80f);
+            contentRt.offsetMin = contentRt.offsetMax = Vector2.zero;
+
+            // Button "Tiếp Tục"
+            GameObject btnObj = new GameObject("ContinueButton", typeof(RectTransform), typeof(Image), typeof(Button));
+            btnObj.transform.SetParent(summaryPanel.transform, false);
+            RectTransform btnRt = btnObj.GetComponent<RectTransform>();
+            btnRt.anchorMin = new Vector2(0.35f, 0.08f);
+            btnRt.anchorMax = new Vector2(0.65f, 0.18f);
+            btnRt.offsetMin = btnRt.offsetMax = Vector2.zero;
+
+            Image btnImg = btnObj.GetComponent<Image>();
+            btnImg.color = new Color(0.88f, 0.44f, 0.12f, 1f); // Orange
+
+            // Assign standard UI sprite if available
+            if (fullSimulatorUI != null && fullSimulatorUI.buttonSpriteNormal != null)
+            {
+                btnImg.sprite = fullSimulatorUI.buttonSpriteNormal;
+                btnImg.type = Image.Type.Sliced;
+            }
+
+            Button btn = btnObj.GetComponent<Button>();
+            btn.onClick.AddListener(ContinueToNextDay);
+
+            GameObject btnTextObj = new GameObject("Text", typeof(RectTransform), typeof(Text));
+            btnTextObj.transform.SetParent(btnObj.transform, false);
+            Text btnText = btnTextObj.GetComponent<Text>();
+            btnText.font = font;
+            btnText.fontSize = 24;
+            btnText.color = Color.white;
+            btnText.alignment = TextAnchor.MiddleCenter;
+            btnText.text = "SANG NGÀY MỚI";
+            RectTransform btnTextRt = btnTextObj.GetComponent<RectTransform>();
+            btnTextRt.anchorMin = Vector2.zero;
+            btnTextRt.anchorMax = Vector2.one;
+            btnTextRt.offsetMin = btnTextRt.offsetMax = Vector2.zero;
+        }
+
+        private void ContinueToNextDay()
+        {
+            if (summaryPanel != null)
+            {
+                Destroy(summaryPanel);
+            }
+
+            isSummaryOpen = false;
+            Time.timeScale = 1f; // Resume time
+
+            var economy = FindAnyObjectByType<EconomyManager>();
+            if (economy != null)
+            {
+                economy.RecordLateFee(dailyUpkeepFee);
+                economy.ResetDailyMetrics();
+            }
+            else if (playerStats != null)
+            {
+                playerStats.DeductMoney(dailyUpkeepFee);
+            }
+
+            if (timeManager != null)
+            {
+                timeManager.Sleep(); // advances day and triggers auto-save
+            }
+            lateSleepTriggered = false;
+
+            // Release player movement if not on boat
+            var boarding = FindAnyObjectByType<BoatBoardingController>();
+            bool onBoat = boarding != null && boarding.IsBoarded;
+
+            var playerController = FindAnyObjectByType<ShorePlayerController>();
+            if (playerController != null)
+            {
+                playerController.CanMove = !onBoat;
+            }
+
+            if (boarding != null && onBoat)
+            {
+                boarding.SetBoatControlActive(true);
+            }
+
+            Cursor.visible = false;
+            Cursor.lockState = CursorLockMode.Locked;
+
+            ShowNotification("Ngày mới bắt đầu! Hãy chèo ghe ra ngã ba sông bán hàng.");
+        }
+
+        private void ReturnBoatHome()
+        {
+            GameObject playerBoat = GameObject.Find("PlayerBoat");
+            if (playerBoat == null)
+                return;
+
+            playerBoat.transform.position = new Vector3(118f, 3.75f, 34f);
+            var rb = playerBoat.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
+        }
+
+        private void ShowHomePrompt()
+        {
+            if (fullSimulatorUI != null)
+            {
+                // We hijack or use the leftPromptPanel to show Sleep prompt
+                var promptPanel = fullSimulatorUI.transform.Find("FullSimulatorCanvas/LeftPromptPanel");
+                if (promptPanel != null)
+                {
+                    promptPanel.gameObject.SetActive(true);
+                    var txt = promptPanel.GetComponentInChildren<TMP_Text>();
+                    if (txt != null)
+                    {
+                        txt.text = "[E] Nghỉ ngơi\n(Đi Ngủ)";
+                    }
+                }
+            }
+        }
+
+        private void HideHomePrompt()
+        {
+            // Only hide if left interactor is not also trying to show something
+            var interactor = FindAnyObjectByType<PlayerNpcTradeInteractor>();
+            if (interactor != null && interactor.CurrentTarget != null) return;
+
+            if (fullSimulatorUI != null)
+            {
+                var promptPanel = fullSimulatorUI.transform.Find("FullSimulatorCanvas/LeftPromptPanel");
+                if (promptPanel != null)
+                {
+                    var txt = promptPanel.GetComponentInChildren<TMP_Text>();
+                    if (txt != null && txt.text.Contains("Nghỉ ngơi"))
+                    {
+                        promptPanel.gameObject.SetActive(false);
+                    }
+                }
+            }
+        }
+
+        private void ShowNotification(string message)
+        {
+            if (string.IsNullOrEmpty(message)) return;
+
+            Debug.Log($"[DayFlowController Notification] {message}");
+            
+            if (NotificationUI.Instance != null)
+            {
+                NotificationUI.Instance.ShowNotification(message);
+            }
+        }
+    }
+}

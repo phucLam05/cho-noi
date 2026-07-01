@@ -7,6 +7,7 @@ using ChoNoiMienTay.Data;
 using ChoNoiMienTay.Infrastructure;
 using ChoNoiMienTay.Presentation;
 using ChoNoiMienTay.Systems;
+using ChoNoi.UI;
 
 namespace ChoNoiMienTay.UI
 {
@@ -42,7 +43,30 @@ namespace ChoNoiMienTay.UI
         private readonly List<Button> inventoryButtons = new List<Button>();
         private readonly List<GameObject> npcCards = new List<GameObject>();
 
+        [Header("Casual GUI Sprites")]
+        public Sprite panelBgSprite;
+        public Sprite buttonSpriteNormal;
+        public Sprite buttonSpriteHover;
+        public Sprite buttonSpritePressed;
+
         private PrototypeScreen currentScreen = PrototypeScreen.Inventory;
+        private bool isHidden = true;
+
+        public bool IsHidden => isHidden;
+
+        public void ToggleVisibility(bool visible)
+        {
+            isHidden = !visible;
+            if (canvas != null)
+            {
+                // Just toggle the background/parent completely
+                canvas.gameObject.SetActive(visible);
+            }
+            if (visible)
+            {
+                RefreshUI();
+            }
+        }
 
         public void Configure(BargainingSystem system, PlayerStats player, InventoryManager inventory)
         {
@@ -94,6 +118,9 @@ namespace ChoNoiMienTay.UI
 
             canvas = canvasObject.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            
+            // Set canvas disabled by default if hidden
+            canvasObject.SetActive(!isHidden);
 
             CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -261,7 +288,9 @@ namespace ChoNoiMienTay.UI
             UpdateInventoryTexts();
             UpdateShopTexts();
             UpdateBargainTexts();
-            ShowScreen(currentScreen);
+            
+            if (!isHidden)
+                ShowScreen(currentScreen);
         }
 
         private void RebuildInventoryButtons()
@@ -338,8 +367,8 @@ namespace ChoNoiMienTay.UI
         {
             hudText.text =
                 $"Tiền: {playerStats.CurrentMoney:N0} VNĐ    " +
-                $"Thể lực: {playerStats.CurrentStamina:0}/{playerStats.MaxStamina:0}    " +
-                $"Stamina / lượt mặc cả: {bargainingSystem.EconomyConfig.StaminaCostPerNegotiation}";
+                $"Hàng trong ghe: {inventoryManager.Inventory.Count} loại    " +
+                $"Tải trọng: {inventoryManager.CurrentTotalWeight:0}/{inventoryManager.MaxWeightCapacity:0} kg";
         }
 
         private void UpdateInventoryTexts()
@@ -440,6 +469,15 @@ namespace ChoNoiMienTay.UI
             }
 
             currentScreen = screen;
+            
+            if (isHidden)
+            {
+                inventoryScreen.SetActive(false);
+                shopScreen.SetActive(false);
+                bargainScreen.SetActive(false);
+                return;
+            }
+
             inventoryScreen.SetActive(screen == PrototypeScreen.Inventory);
             shopScreen.SetActive(screen == PrototypeScreen.Shop);
             bargainScreen.SetActive(screen == PrototypeScreen.Bargain);
@@ -479,7 +517,7 @@ namespace ChoNoiMienTay.UI
             button.gameObject.AddComponent<LayoutElement>().preferredHeight = 56f;
             button.onClick.AddListener(() =>
             {
-                if (bargainingSystem.StartSession(profile))
+                if (bargainingSystem.StartSession(profile, 1))
                 {
                     ShowScreen(PrototypeScreen.Bargain);
                 }
@@ -512,9 +550,23 @@ namespace ChoNoiMienTay.UI
 
         private GameObject CreatePanel(string name, Transform parent, Color color)
         {
-            GameObject panel = new GameObject(name, typeof(RectTransform), typeof(Image));
-            panel.transform.SetParent(parent, false);
-            panel.GetComponent<Image>().color = color;
+            GameObject panel;
+            if (panelBgSprite != null)
+            {
+                panel = new GameObject(name, typeof(RectTransform), typeof(Image));
+                panel.transform.SetParent(parent, false);
+                Image img = panel.GetComponent<Image>();
+                img.sprite = panelBgSprite;
+                img.type = Image.Type.Sliced;
+                img.color = Color.white;
+            }
+            else
+            {
+                panel = new GameObject(name, typeof(RectTransform), typeof(Image));
+                panel.transform.SetParent(parent, false);
+                panel.GetComponent<Image>().color = color;
+            }
+
             return panel;
         }
 
@@ -523,7 +575,7 @@ namespace ChoNoiMienTay.UI
             GameObject textObject = new GameObject(name, typeof(RectTransform), typeof(Text));
             textObject.transform.SetParent(parent, false);
             Text text = textObject.GetComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.font = FontHelper.GameFont;
             text.fontSize = fontSize;
             text.alignment = alignment;
             text.color = Color.white;
@@ -544,24 +596,48 @@ namespace ChoNoiMienTay.UI
 
         private Button CreateButton(string name, Transform parent, string label)
         {
-            GameObject buttonObject = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
-            buttonObject.transform.SetParent(parent, false);
+            GameObject buttonObject;
+            if (buttonSpriteNormal != null)
+            {
+                buttonObject = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+                buttonObject.transform.SetParent(parent, false);
 
-            Image background = buttonObject.GetComponent<Image>();
-            background.color = new Color(0.86f, 0.73f, 0.46f, 1f);
+                Image background = buttonObject.GetComponent<Image>();
+                background.sprite = buttonSpriteNormal;
+                background.type = Image.Type.Sliced;
+                background.color = Color.white;
 
-            Button button = buttonObject.GetComponent<Button>();
-            ColorBlock colors = button.colors;
-            colors.highlightedColor = new Color(0.95f, 0.82f, 0.58f, 1f);
-            colors.pressedColor = new Color(0.72f, 0.58f, 0.33f, 1f);
-            colors.disabledColor = new Color(0.45f, 0.45f, 0.45f, 0.9f);
-            button.colors = colors;
+                Button button = buttonObject.GetComponent<Button>();
+                button.targetGraphic = background;
+                button.transition = Selectable.Transition.SpriteSwap;
+                SpriteState state = new SpriteState();
+                state.highlightedSprite = buttonSpriteHover != null ? buttonSpriteHover : buttonSpriteNormal;
+                state.pressedSprite = buttonSpritePressed != null ? buttonSpritePressed : buttonSpriteNormal;
+                button.spriteState = state;
+            }
+            else
+            {
+                buttonObject = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+                buttonObject.transform.SetParent(parent, false);
 
+                Image background = buttonObject.GetComponent<Image>();
+                background.color = new Color(0.86f, 0.73f, 0.46f, 1f);
+
+                Button button = buttonObject.GetComponent<Button>();
+                button.targetGraphic = background;
+                ColorBlock colors = button.colors;
+                colors.highlightedColor = new Color(0.95f, 0.82f, 0.58f, 1f);
+                colors.pressedColor = new Color(0.72f, 0.58f, 0.33f, 1f);
+                colors.disabledColor = new Color(0.45f, 0.45f, 0.45f, 0.9f);
+                button.colors = colors;
+            }
+
+            Button btnComp = buttonObject.GetComponent<Button>();
             Text text = CreateText("Label", buttonObject.transform, 24, TextAnchor.MiddleCenter);
             text.text = label;
-            text.color = new Color(0.16f, 0.12f, 0.07f, 1f);
+            text.color = buttonSpriteNormal != null ? Color.white : new Color(0.16f, 0.12f, 0.07f, 1f);
             Stretch(text.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            return button;
+            return btnComp;
         }
 
         private void CreateTitle(Transform parent, string title)

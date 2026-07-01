@@ -1,276 +1,187 @@
 # Chợ Nổi Miền Tây
 
 3D Simulation / Management game lấy bối cảnh chợ nổi miền Tây Nam Bộ Việt Nam.  
-Xây dựng bằng **Unity 6 (6000.4.7f1)** theo kiến trúc **Clean Architecture**.
+Dự án được xây dựng bằng **Unity 6 (6000.4.7f1)** theo mô hình **Clean Architecture**, phân tách rành mạch logic lõi, giao diện UI và tương tác vật lý.
 
 ---
 
 ## Mục lục
 
-- [Tổng quan game](#tổng-quan-game)
+- [Tổng quan game & Game Loop](#tổng-quan-game--game-loop)
 - [Tech Stack](#tech-stack)
-- [Kiến trúc dự án](#kiến-trúc-dự-án)
-- [Cấu trúc thư mục](#cấu-trúc-thư-mục)
-- [Mô tả Source Code](#mô-tả-source-code)
-- [Hệ thống vật lý ghe](#hệ-thống-vật-lý-ghe)
-- [Chạy Tests](#chạy-tests)
-- [Setup trong Unity Editor](#setup-trong-unity-editor)
-- [Quy tắc đóng góp code](#quy-tắc-đóng-góp-code)
+- [Kiến trúc dự án (Clean Architecture)](#kiến-trúc-dự-án-clean-architecture)
+- [Cấu trúc thư mục chi tiết](#cấu-trúc-thư-mục-chi-tiết)
+- [Hệ thống & Tính năng chính](#hệ-thống--tính-năng-chính)
+- [Cấu hình chức năng NPC (Dành cho nhà phát triển)](#cấu-hình-chức-năng-npc-dành-cho-nhà-phát-triển)
+- [Chạy Tests & Build Cảnh](#chạy-tests--build-cảnh)
 
 ---
 
-## Tổng quan game
+## Tổng quan game & Game Loop
 
-| Thời điểm | Hoạt động |
-|---|---|
-| 3AM – 10AM (Bình Minh) | Bán hàng tại Cây Bẹo, mặc cả với thương lái |
-| 10AM – 4PM (Ban ngày) | Thu mua nông sản tại các kênh rạch |
-| Chiều tối | Nâng cấp ghe, bảo trì tại bến |
+Trò chơi mô phỏng chu kỳ làm việc và đời sống thương hồ qua 3 Phase thời gian:
 
-**Mục tiêu Phase 1:** Hoàn thiện hệ thống di chuyển ghe (Boat Physics & Controller).
+| Phase | Thời gian | Hoạt động chính |
+|---|---|---|
+| **Phase 1: Bình Minh** | 3AM – 10AM | Lái ghe tranh bến, quảng bá hàng bằng **Cây Bẹo**, mặc cả bán sỉ với **Thương Lái**. |
+| **Phase 2: Chiều Tà** | 1PM – 6PM | Đi rạch nhỏ thu mua nông sản lẻ giá gốc, về **Trại Ghe** để sửa chữa và nâng cấp. |
+| **Phase 3: Chạng Vạng** | 6PM – 8PM | Sắp xếp kho hàng trên ghe, chuẩn bị Cây Bẹo, đi ngủ (Save game) chuyển ngày mới. |
 
 ---
 
 ## Tech Stack
 
-| Thành phần | Chi tiết |
-|---|---|
-| Engine | Unity 6000.4.7f1 |
-| Ngôn ngữ | C# (.NET Standard 2.1) |
-| Input System | Unity New Input System (`InputSystem_Actions.inputactions`) |
-| Physics | `Rigidbody` + `FixedUpdate` — `ForceMode.Acceleration` |
-| Dữ liệu | `ScriptableObject` (Data-Driven, không hard-code) |
-| Kiến trúc | Clean Architecture (Domain / Application / Infrastructure / Presentation) |
+- **Engine**: Unity 6 (6000.4.7f1)
+- **Ngôn ngữ**: C# (.NET Standard 2.1)
+- **Input System**: Unity New Input System (đối thoại, lái ghe, kéo thả UI bẹo)
+- **Physics**: Rigidbody + FixedUpdate (lực đẩy tiến/lùi, cản nước trượt ngang)
+- **UI System**: Unity UI (Canvas + RectTransform) xây dựng lập trình động (Procedural UI)
+- **Dữ liệu**: ScriptableObjects (Data-Driven, dễ dàng cân bằng game mà không cần sửa code)
 
 ---
 
-## Kiến trúc dự án
+## Kiến trúc dự án (Clean Architecture)
+
+Dự án tuân thủ nghiêm ngặt 4 lớp kiến trúc nhằm phân tách các thành phần độc lập:
 
 ```
-┌─────────────────────────────────────┐
-│           Presentation              │  MonoBehaviour, Input, Vật lý, UI
-│   BoatController  │  PCBoatInput    │
-└────────────┬──────────────┬─────────┘
-             │ implement    │ use
-             ▼              ▼
-┌─────────────────────────────────────┐
-│              Domain                 │  Logic thuần C#, không MonoBehaviour
-│           IBoatInput                │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    Presentation                         │ MonoBehaviour, Input, Vật lý, UI
+│   BoatController | ShorePlayerController | UI Scripts   │
+└────────────┬─────────────────────────────┬──────────────┘
+             │ implement                   │ use
+             ▼                             ▼
+┌─────────────────────────────────────────────────────────┐
+│                       Domain                            │ Logic nghiệp vụ thuần C#, không MonoBehaviour
+│     IBoatInput | ITimeSystem | GamePhase.cs             │
+└─────────────────────────────────────────────────────────┘
              ▲
              │ data
-┌─────────────────────────────────────┐
-│           Infrastructure            │  ScriptableObjects, cấu hình
-│            BoatStats                │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    Infrastructure                       │ ScriptableObjects dữ liệu, Quản lý Save/Load
+│    BoatStats | SaveLoadManager | BargainingEconomyConfig│
+└─────────────────────────────────────────────────────────┘
 ```
-
-**Nguyên tắc cốt lõi:**
-- **Dependency Inversion** — `BoatController` phụ thuộc `IBoatInput` (interface), không phụ thuộc `PCBoatInput` (implementation)
-- **Single Responsibility** — mỗi class chỉ giải quyết 1 nhiệm vụ
-- **Data-Driven** — toàn bộ chỉ số nằm trong `BoatStats.asset`, chỉnh trong Inspector không cần sửa code
 
 ---
 
-## Cấu trúc thư mục
+## Cấu trúc thư mục chi tiết
 
 ```
 Assets/
-├── InputSystem_Actions.inputactions   # Định nghĩa input (giữ nguyên)
-├── Scenes/                            # Scene Unity (giữ nguyên)
-├── Settings/                          # Cài đặt project (giữ nguyên)
-│
-└── _Project/                          # Toàn bộ code dự án
+├── InputSystem_Actions.inputactions   # Định nghĩa Input Action Map
+├── Scenes/                            # Chứa cảnh build
+└── _Project/
     ├── Scripts/
-    │   ├── Domain/
-    │   │   └── IBoatInput.cs
-    │   ├── Application/               # (chờ Service trung gian — Phase 2)
-    │   ├── Infrastructure/
-    │   │   └── BoatStats.cs
-    │   ├── Presentation/
-    │   │   ├── BoatController.cs
-    │   │   └── PCBoatInput.cs
-    │   ├── Editor/
-    │   │   └── BoatTestRunner.cs      # Chạy test từ terminal
-    │   └── Tests/
-    │       └── BoatControllerValidator.cs
-    └── Prefabs/                       # (chờ Prefab ghe — Phase 2)
-
-knowledge-base/                        # Tài liệu nội bộ dự án
-run-tests.sh                           # Script chạy test từ terminal
+    │   ├── Domain/                    # Lớp lõi: Interface di chuyển, hệ thống thời gian, enum Phase
+    │   │   ├── IBoatInput.cs
+    │   │   ├── ITimeSystem.cs
+    │   │   └── GamePhase.cs
+    │   ├── Application/               # Quản lý chu kỳ game
+    │   │   └── TimeManager.cs         # Đồng hồ in-game, trigger chuyển Phase
+    │   ├── Infrastructure/            # Cấu hình dữ liệu (ScriptableObjects), Save/Load
+    │   │   ├── BoatStats.cs           # Chỉ số vật lý của ghe
+    │   │   ├── ItemData.cs            # Định nghĩa vật phẩm (khóm, bí đao, củ sắn...)
+    │   │   ├── InventoryManager.cs    # Quản lý tải trọng, khoang chứa ghe
+    │   │   ├── BoatUpgradeCatalogSO.cs# Catalog nâng cấp ghe
+    │   │   ├── EnvironmentProfileSO.cs# Cấu hình thời tiết/sương mù/ánh sáng
+    │   │   ├── BargainingEconomyConfig.cs # Cấu hình giá cả mặc cả sỉ
+    │   │   └── SaveLoadManager.cs     # Tự động lưu game khi ngủ
+    │   ├── Presentation/              # MonoBehaviours xử lý vật lý, điều khiển và thực thể
+    │   │   ├── BoatController.cs      # Chuyển động ghe
+    │   │   ├── PCBoatInput.cs         # Đọc bàn phím/tay cầm lái ghe
+    │   │   ├── BoatFollowCamera.cs    # Camera theo dõi ghe
+    │   │   ├── Player/                # Nhân vật (di chuyển trên bộ, tiền túi, thể lực, tương tác)
+    │   │   │   ├── ShorePlayerController.cs
+    │   │   │   ├── BoatBoardingController.cs (Lên/xuống ghe an toàn lên cầu tàu)
+    │   │   │   ├── PlayerNpcTradeInteractor.cs (Dò tìm tương tác NPC gần nhất)
+    │   │   │   └── PlayerStats.cs
+    │   │   ├── NPC/                   # Trí tuệ NPC
+    │   │   │   ├── NpcTradeTarget.cs  # Phân loại tương tác NPC (Bargain, Trade, Upgrade)
+    │   │   │   └── SimpleNpcWander.cs # Di chuyển tuần tra của NPC
+    │   │   ├── Environment/           # Nội suy ánh sáng, sương mù theo thời gian
+    │   │   │   ├── EnvironmentController.cs
+    │   │   │   └── AmbientBob.cs
+    │   │   └── Managers/              # Hệ thống quản lý kinh tế và tin tức
+    │   │       ├── EconomyManager.cs  # Trung tâm thanh toán mua bán sỉ/lẻ
+    │   │       └── MarketNewsController.cs
+    │   ├── UI/                        # Giao diện HUD và Đối thoại
+    │   │   ├── RiverMarketHUD.cs      # HUD trên cùng (Tiền, Thể lực, Độ bền), Menu nâng cấp
+    │   │   └── FullSimulatorUI.cs     # Đối thoại Witcher 3, kéo thả Cây Bẹo, chọn số lượng sỉ
+    │   ├── Editor/                    # Các script tạo cảnh tự động và chạy test
+    │   │   ├── RiverMarketSceneBuilder.cs  # Tạo địa hình, sông ngòi, cầu tàu, spawn thực thể
+    │   │   ├── FullSimulatorSceneBuilder.cs# Khởi tạo các hệ thống quản lý, phân loại NPC
+    │   │   └── BoatTestRunner.cs      # Trình chạy unit test
+    │   └── Tests/                     # Các test xác thực thủ công và log thời gian
+    │       ├── BoatControllerValidator.cs
+    │       └── TimeLogger.cs
+    └── Prefabs/                       # Prefab mô hình 3D
 ```
 
 ---
 
-## Mô tả Source Code
+## Hệ thống & Tính năng chính
 
-### `Domain/IBoatInput.cs`
-**Namespace:** `ChoNoi.Domain`
+### 1. Di chuyển và Vật lý Ghe (`BoatController.cs`)
+- Sử dụng công thức vật lý giả lập dòng nước: Lực đẩy tiến/lùi, cản nước tịnh tiến và đặc biệt là **hệ số cản trượt ngang (Sideways Drag)** giúp giữ hướng mũi ghe khi rẽ.
+- **Steering nhân vận tốc**: Lực lái tỉ lệ thuận với tốc độ di chuyển hiện tại, phản ánh chân thực việc bánh lái chỉ có tác dụng khi có dòng nước chảy qua.
+- **Tải trọng ảnh hưởng tốc độ**: Tổng khối lượng hàng hóa trong khoang chứa ảnh hưởng trực tiếp đến gia tốc và quán tính của ghe.
 
-Interface trừu tượng hóa nguồn đầu vào điều khiển ghe. Mọi thiết bị (bàn phím, gamepad, AI) đều implement interface này để `BoatController` không bị ràng buộc với thiết bị cụ thể.
+### 2. Giao diện đối thoại & Mặc cả sỉ kiểu Witcher 3
+- Hộp đối thoại phụ đề nằm ở **dưới cùng chính giữa** với nền đen mờ sang trọng. Tên NPC có màu vàng nổi bật.
+- Danh sách lựa chọn của người chơi nằm ở **phía rìa phải, bên trên phụ đề**, được đánh số thứ tự rõ ràng (`1. `, `2. `) để dễ điều khiển.
+- **Giá đề xuất mặc định thông minh**: Khi mở bảng ra giá sỉ, thanh trượt mặc định trỏ về giá mở cửa của NPC (`NpcOpeningPrice`) ở lượt đầu tiên và bắt đầu từ mức giá mà người chơi đã đề xuất trước đó (`PlayerProposedPrice`) ở các lượt đôi co tiếp theo.
+- **Cơ chế xác suất mặc cả suy giảm mũ**: NPC đồng ý ngay lập tức nếu đơn giá bán $\le$ giá trần chấp nhận ẩn của họ. Nếu cao hơn, xác suất chấp nhận $P_{accept} = e^{-5 \times Ratio}$ và xác suất bỏ đi $P_{walk\_away} = 1.0 - e^{-3 \times Ratio \times (Turn + 1)}$. Chi tiết công thức toán học xem tại **[bargaining_mechanics.md](file:///e:/university/pru/cho-noi-mien-tay/knowledge-base/task-phase-04-tv1-physics-tuning/bargaining_mechanics.md)**.
+- **Giới hạn 1 giao dịch/ngày**: Mỗi NPC chỉ thực hiện tối đa 1 phiên giao dịch bán sỉ mỗi ngày (thành công hoặc hủy bỏ). Hệ thống khóa tương tác mua bán lại cho đến khi người chơi đi ngủ chuyển sang ngày mới.
 
+### 3. Kéo thả Cây Bẹo và Đa Tab (Tabbed Cargo UI)
+- Phím `B` mở giao diện quản lý đa năng gồm 2 Tab:
+  - **Tab Khoang Thuyền**: Danh sách thống kê toàn bộ hàng hóa đang có trên ghe, khối lượng và giá trị tương đương.
+  - **Tab Cây Bẹo**: Giao diện kéo thả nông sản tiếp thị lên sào tre. Có nút [Gỡ] nhanh và hỗ trợ kéo đè vật phẩm mới để thay thế vật phẩm cũ.
+- **Lưới ô hàng cuộn dọc & Căn chỉnh tối ưu**: Các lưới ô chứa hàng hóa tại Tab Khoang Thuyền và Tab Cây Bẹo (kho hàng trên ghe) được bọc bằng `ScrollRect` và `RectMask2D` động để cuộn trơn tru khi nâng cấp tải trọng ghe. Kho hàng trên ghe của Tab Cây Bẹo hiển thị theo lưới 4 cột căn giữa giúp phân bố không gian cân đối, không bị che khuất.
+- **Chặn phím tương tác chồng đè**: Phím `B` tự động bị vô hiệu hóa khi người chơi đang đối thoại hoặc mặc cả với NPC để ngăn chặn lỗi giao diện chồng chéo.
+
+---
+
+## Cấu hình chức năng NPC (Dành cho nhà phát triển)
+
+Nếu bạn muốn thay đổi hoặc tinh chỉnh chức năng của các NPC trong game, bạn có thể thực hiện tại các khu vực sau:
+
+### 1. Thay đổi Kiểu tương tác của NPC (Bargain, Trade, Upgrade)
+Mỗi NPC có một component `NpcTradeTarget` quy định bán kính tương tác và loại tương tác. Việc phân loại này được cấu hình tự động tại **[FullSimulatorSceneBuilder.cs](file:///d:/Ky7/pru/assignment/new/cho-noi-mien-tay/Assets/_Project/Scripts/Editor/FullSimulatorSceneBuilder.cs)** bên trong hàm `BuildFullScene()`:
 ```csharp
-public interface IBoatInput
-{
-    float Throttle { get; }   // [-1, 1] — âm: lùi, dương: tiến
-    float Steering { get; }   // [-1, 1] — âm: trái, dương: phải
-}
+ConfigureTradeTarget("MerchantLargeBoat", InteractionTargetType.Bargain);   // Thương lái mặc cả sỉ
+ConfigureTradeTarget("FoodVendorSmallBoat", InteractionTargetType.Trade);   // Ghe bán dạo ăn uống, mua lẻ
+ConfigureTradeTarget("ShoreVillagerNpc", InteractionTargetType.Trade);      // Dân làng mua bán lẻ, giao lưu
+ConfigureTradeTarget("WoodPost", InteractionTargetType.Upgrade);            // Cọc nâng cấp bảo trì trại ghe
 ```
+- **Cách chỉnh**: Bạn chỉ cần thay đổi tham số `InteractionTargetType` (ví dụ: đổi từ `Trade` thành `Bargain` nếu muốn cho phép dân làng trả giá sỉ). Sau khi đổi, hãy chạy menu **ChoNoi > Scenes > Build Full UI Simulator Scene** trong Unity Editor để áp dụng.
+
+### 2. Cân bằng kinh tế & Mức độ trả giá của NPC
+Toàn bộ thông số kinh tế, giá cơ bản của nông sản, và hồ sơ tính cách của từng thương lái được quản lý thông qua file Asset ScriptableObject:
+- **Đường dẫn**: `Assets/_Project/ScriptableObjects/Bargaining/BargainingEconomyConfig.asset`
+- **Cách chỉnh (không cần code)**: Click chọn file này trong Inspector của Unity Editor để điều chỉnh:
+  - `Stamina Cost Per Negotiation`: Số thể lực tiêu tốn cho mỗi lượt nâng/hạ giá.
+  - `Offer Step`: Bước nhảy giá tiền mỗi lần bấm nút tăng/giảm giá.
+  - `Agricultural Items`: Danh sách nông sản, giá gốc và khoảng biến động giá thị trường.
+  - `Npc Profiles`: Danh sách thương lái, gồm Avatar, `openingPriceMultiplier` (hệ số mở giá đầu ngày) và `maxAcceptPriceMultiplier` (ngưỡng chấp nhận giá tối đa của NPC).
+
+### 3. Thay đổi Lời thoại NPC (Dialogue text)
+Nội dung lời thoại của NPC và người chơi tương ứng với từng trạng thái đối thoại được quy định trong **[FullSimulatorUI.cs](file:///d:/Ky7/pru/assignment/new/cho-noi-mien-tay/Assets/_Project/Scripts/UI/FullSimulatorUI.cs)** tại hàm `UpdateDialogueUI()`:
+- **Cách chỉnh**: Sửa nội dung các chuỗi text gán cho `dialogueText.text` nằm trong khối `switch (dialogueState)` của từng trường hợp (VD: `DialogueState.MerchantGreeting`, `DialogueState.VendorGreeting`).
 
 ---
 
-### `Infrastructure/BoatStats.cs`
-**Namespace:** `ChoNoi.Infrastructure` | **Loại:** `ScriptableObject`  
-**Tạo asset:** Menu Unity `ChoNoi > Boat Stats`
+## Chạy Tests & Build Cảnh
 
-Lưu toàn bộ chỉ số vật lý của ghe. Thay đổi cảm giác lái bằng cách chỉnh số trong Inspector.
-
-| Field | Mặc định | Mô tả |
-|---|---|---|
-| `thrustForce` | `10` | Lực đẩy tiến/lùi (m/s²) |
-| `waterDrag` | `2` | Hệ số cản nước theo chiều vận tốc |
-| `sidewaysDrag` | `5` | Hệ số cản trượt ngang — giữ ghe đúng hướng mũi |
-| `turnTorque` | `3` | Mô-men xoắn lái, nhân vận tốc để chỉ lái khi đang chạy |
-
----
-
-### `Presentation/PCBoatInput.cs`
-**Namespace:** `ChoNoi.Presentation` | **Implement:** `IBoatInput`
-
-Đọc Action `Move` (Vector2) từ ActionMap `Player` trong `InputSystem_Actions.inputactions` và cung cấp `Throttle` / `Steering` cho `BoatController`.
-
-**Setup Inspector:** Kéo file `InputSystem_Actions.inputactions` vào field **Input Actions**.
-
----
-
-### `Presentation/BoatController.cs`
-**Namespace:** `ChoNoi.Presentation` | `[RequireComponent(typeof(Rigidbody))]`
-
-Áp dụng 4 lực vật lý lên `Rigidbody` trong `FixedUpdate`:
-
-| Phương thức | Công thức | Mục đích |
-|---|---|---|
-| `ApplyThrust` | `F = forward × throttle × thrustForce` | Lực đẩy tiến / lùi |
-| `ApplyWaterDrag` | `F = −velocity × waterDrag` | Cản nước — ghe không trôi mãi |
-| `ApplySidewaysResistance` | `F = −(right · v) × right × sidewaysDrag` | Chống trượt ngang |
-| `ApplySteering` | `T = up × steering × turnTorque × │v│` | Lái — chỉ có tác dụng khi đang chạy |
-
-**Setup Inspector:** Gắn `BoatStats.asset` vào field **Boat Stats**. `Rigidbody` và `IBoatInput` được lấy tự động qua `GetComponent`.
-
----
-
-### `Tests/BoatControllerValidator.cs`
-**Namespace:** `ChoNoi.Tests` | Gắn vào cùng GameObject với ghe
-
-Bộ test vật lý chạy bằng cách chuột phải vào script trong Inspector (`[ContextMenu]`):
-
-| ContextMenu | Cần Play? | Kiểm tra gì |
-|---|---|---|
-| `Test 1 - Kiem Tra BoatStats` | Không | Stats không null, tất cả giá trị > 0 |
-| `Test 2 - Luc Day Tien` | Có | Áp lực 0.5s → vận tốc tiến phải > ngưỡng tối thiểu |
-| `Test 3 - Mo Men Lai` | Có | Đứng im không quay; đang chạy phải quay |
-| `Test 4 - Quan Tinh Nuoc` | Có | Ngắt ga 1.5s → tốc độ giảm < 80% tốc độ đỉnh |
-| `>>> Chay Tat Ca Test <<<` | Có | Chạy tuần tự Test 1 → 4 |
-
----
-
-### `Editor/BoatTestRunner.cs`
-**Namespace:** `ChoNoi.Editor` | Chạy từ terminal hoặc menu `ChoNoi > Run All Tests`
-
-22 unit test kiểm tra toán học công thức vật lý, không cần Play mode:
-
-- **6 test** — BoatStats validation (null check, giá trị dương)
-- **12 test** — Xác minh 4 công thức vật lý (thrust, drag, sideways, steering)
-- **4 test** — IBoatInput contract (Throttle/Steering ∈ [-1, 1])
-
----
-
-## Hệ thống vật lý ghe
-
-Toàn bộ lực dùng `ForceMode.Acceleration` (bỏ qua khối lượng Rigidbody):
-
-```
-Mỗi FixedUpdate:
-
-  F_thrust    = transform.forward  × throttle × thrustForce
-  F_waterDrag = −rb.linearVelocity × waterDrag
-  F_sideways  = −(rb.linearVelocity · transform.right) × transform.right × sidewaysDrag
-  T_steer     =  transform.up      × steering × turnTorque × |rb.linearVelocity|
-```
-
-**Tại sao nhân `|velocity|` cho steering?**  
-Ghe thật trên sông không thể bẻ lái khi đứng yên — bánh lái chỉ có tác dụng khi nước chảy qua. Nhân mô-men lái với độ lớn vận tốc mô phỏng đúng hành vi này.
-
----
-
-## Chạy Tests
-
-Chạy từ terminal (không cần mở Unity Editor):
-
+### Chạy Unit Tests từ Terminal
+Tất cả các bài kiểm tra toán học và công thức vật lý ghe có thể được chạy tự động qua terminal:
 ```bash
 ./run-tests.sh
 ```
 
-Kết quả mẫu:
-```
-==================================================
-  CHO NOI MIEN TAY — Boat Physics Test Runner
-==================================================
---- 1. KIEM TRA BOAT STATS (Unit Test) ---
-  ✓  [PASS] BoatStats tao duoc instance (khong null)
-  ✓  [PASS] ThrustForce phai > 0
-  ...
---- 2. KIEM TRA CONG THUC VAT LY ---
-  ✓  [PASS] Thrust (throttle=1): luc dam tien dung chieu forward
-  ...
-  RESULT: ALL 22 TESTS PASSED
-==================================================
-```
-
-Exit code `0` = tất cả pass, `1` = có test fail (dùng được trong CI/CD).
-
----
-
-## Setup trong Unity Editor
-
-1. Mở project bằng **Unity 6000.4.7f1**
-2. Tạo `BoatStats` asset: menu `ChoNoi > Boat Stats`, lưu vào `Assets/_Project/`
-3. Tạo GameObject ghe, thêm các component theo thứ tự:
-   - `Rigidbody`
-   - `PCBoatInput` → kéo `InputSystem_Actions.inputactions` vào field **Input Actions**
-   - `BoatController` → kéo `BoatStats.asset` vào field **Boat Stats**
-4. (Tuỳ chọn) Thêm `BoatControllerValidator` để test trong Play mode
-
----
-
-## Quy tắc đóng góp code
-
-- **Namespace:** `ChoNoi.[Layer].[SubFolder]`
-- **Naming:** Classes `PascalCase`, variables/methods `camelCase`
-- **Mọi class mới** phải có header comment theo template trong `knowledge-base/common/csharp-unity-doc-template.md`
-- **Chỉ số vật lý** phải nằm trong `BoatStats` (ScriptableObject), không hard-code
-- **Code mới** chỉ được đặt trong `Assets/_Project/` — không sửa `Scenes/`, `Settings/`, `TutorialInfo/`
-- **Tham chiếu private** dùng `[SerializeField]` thay vì `public`
-
-## Quy tắc làm việc nhóm (Workflow)
-
-Để tránh xung đột (Merge Conflict) trong Unity khi nhiều người cùng làm việc, toàn bộ team tuân thủ các quy tắc sau:
-
-### 1. KHÔNG BAO GIỜ làm việc chung trên cùng một Scene
-- File Scene (`.unity`) của Unity rất dễ bị lỗi conflict khi merge bằng Git.
-- Mỗi thành viên **tự tạo một Scene riêng** trong thư mục `_Project/Scenes/Sandbox/` (ví dụ: `Tuan_TestScene.unity`, `Minh_TestScene.unity`) để làm việc và test các tính năng.
-- Khi hoàn thành một tính năng (VD: Nhân vật di chuyển), hãy đóng gói tính năng đó thành một **Prefab** (lưu vào thư mục `_Project/Prefabs/`).
-- Người được phân công chịu trách nhiệm "ráp level" sẽ kéo Prefab đó vào Scene chính trong `_Project/Scenes/Core/`.
-
-### 2. Tách nhỏ Prefab
-- Tránh tạo một Prefab khổng lồ chứa toàn bộ game.
-- Nếu bạn thiết kế UI, hãy tách từng màn hình thành một Prefab riêng lẻ (Ví dụ: `MainMenuPanel.prefab`, `SettingsPanel.prefab`). Điều này cho phép nhiều người có thể chỉnh sửa các phần UI khác nhau cùng lúc.
-
-### 3. Tách Data ra khỏi Logic
-- Không được gõ "chết" (hardcode) các thông số như Máu, Sát thương, Tốc độ... thẳng vào code (Scripts).
-- Khuyến khích sử dụng **ScriptableObject** để cấu hình dữ liệu. Designer sẽ có thể thay đổi dữ liệu một cách linh hoạt mà không cần lập trình viên can thiệp vào code.
-
-### 4. Quy tắc quản lý phiên bản (Git)
-- Đảm bảo đã thiết lập `.gitignore` cho Unity (thư mục `Library`, `Temp`, `Logs`, `obj`, v.v. KHÔNG bao giờ được đưa lên Git).
-- Trước khi push code, luôn luôn phải test xem tính năng của mình có gây lỗi (compile error) cho project không.
-- Nếu xảy ra xung đột ở các file `.prefab` hoặc `.unity` mà không thể tự giải quyết, hãy thông báo ngay với team để tìm cách xử lý. KHÔNG cố tình ghi đè nếu bạn không chắc chắn.
+### Build cảnh tự động trong Unity
+Để build lại toàn bộ scene từ mã nguồn sạch:
+1. Mở Unity Editor.
+2. Click chọn menu **ChoNoi > Scenes > Build Full UI Simulator Scene**.
+3. Cảnh `RiverMarketScene.unity` mới nhất sẽ tự động được sinh ra trong thư mục `Assets/_Project/Scenes/Core/` với đầy đủ liên kết thực thể.

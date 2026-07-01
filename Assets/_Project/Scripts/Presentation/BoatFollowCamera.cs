@@ -24,10 +24,12 @@ namespace ChoNoi.Presentation
         private float orbitDistance;
         private bool orbitInitialized;
         private float defaultPitch;
+        private bool targetIsOnFoot;
 
         public void Configure(Transform followTarget)
         {
             target = followTarget;
+            targetIsOnFoot = target != null && target.GetComponent<ChoNoi.Presentation.Player.ShorePlayerController>() != null;
             orbitInitialized = false;
             orbitDistance = offset.magnitude;
             UpdateDefaultPitch();
@@ -36,6 +38,7 @@ namespace ChoNoi.Presentation
         private void Start()
         {
             orbitDistance = offset.magnitude;
+            targetIsOnFoot = target != null && target.GetComponent<ChoNoi.Presentation.Player.ShorePlayerController>() != null;
             UpdateDefaultPitch();
         }
 
@@ -49,8 +52,6 @@ namespace ChoNoi.Presentation
         {
             if (target == null) return;
 
-            bool isOnFootTarget = target.GetComponent<ChoNoi.Presentation.Player.ShorePlayerController>() != null;
-
             // Kiểm tra lăn chuột để Zoom ở mọi chế độ
             float scroll = Mouse.current != null ? Mouse.current.scroll.ReadValue().y : 0f;
             if (Mathf.Abs(scroll) > 0.01f)
@@ -58,12 +59,12 @@ namespace ChoNoi.Presentation
                 orbitDistance = Mathf.Clamp(orbitDistance - Mathf.Sign(scroll) * zoomSpeed, minZoomDistance, maxZoomDistance);
             }
 
-            bool isFreeLookHeld = isOnFootTarget
+            bool isFreeLookHeld = targetIsOnFoot
                 ? (Mouse.current?.rightButton.isPressed ?? false)
                 : ((Keyboard.current?.leftAltKey.isPressed ?? false) || (Keyboard.current?.rightAltKey.isPressed ?? false));
             Vector3 desiredPosition;
 
-            if (isOnFootTarget)
+            if (targetIsOnFoot)
             {
                 if (!orbitInitialized)
                 {
@@ -80,6 +81,22 @@ namespace ChoNoi.Presentation
                     float sensitivity = mouseSensitivity * 0.01f;
                     orbitYaw += mouseDelta.x * sensitivity;
                     orbitPitch = Mathf.Clamp(orbitPitch - mouseDelta.y * sensitivity, minPitch, maxPitch);
+                }
+                else
+                {
+                    bool pressingMove = false;
+                    if (Keyboard.current != null)
+                    {
+                        pressingMove = Keyboard.current.wKey.isPressed || Keyboard.current.sKey.isPressed || 
+                                       Keyboard.current.aKey.isPressed || Keyboard.current.dKey.isPressed ||
+                                       Keyboard.current.upArrowKey.isPressed || Keyboard.current.downArrowKey.isPressed ||
+                                       Keyboard.current.leftArrowKey.isPressed || Keyboard.current.rightArrowKey.isPressed;
+                    }
+                    
+                    if (pressingMove)
+                    {
+                        orbitYaw = Mathf.LerpAngle(orbitYaw, target.eulerAngles.y, 3.0f * Time.deltaTime);
+                    }
                 }
 
                 Quaternion worldRotation = Quaternion.Euler(orbitPitch, orbitYaw, 0f);
