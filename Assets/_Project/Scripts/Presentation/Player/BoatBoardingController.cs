@@ -153,6 +153,8 @@ namespace ChoNoi.Presentation.Player
             if (followCamera != null)
                 followCamera.Configure(transform);
 
+            if (cc != null)
+                cc.enabled = true;
         }
 
         public void ResetToStartingState(Vector3 playerStartPos, Quaternion playerStartRot, Vector3 boatStartPos, Quaternion boatStartRot)

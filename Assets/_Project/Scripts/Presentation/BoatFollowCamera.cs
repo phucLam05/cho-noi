@@ -100,13 +100,20 @@ namespace ChoNoi.Presentation
                 }
 
                 Quaternion worldRotation = Quaternion.Euler(orbitPitch, orbitYaw, 0f);
-                Vector3 onFootLookTarget = target.position + Vector3.up * onFootTargetHeight;
-                desiredPosition = onFootLookTarget + worldRotation * new Vector3(0f, 0f, -orbitDistance);
-                transform.position = Vector3.Lerp(transform.position, desiredPosition, Time.deltaTime * followSpeed);
+                float currentScale = 1f;
+                Transform visual = target.Find("PlayerVisualRoot");
+                if (visual != null)
+                {
+                    currentScale = visual.localScale.y;
+                }
+                Vector3 onFootLookTarget = target.position + Vector3.up * (onFootTargetHeight * currentScale);
+                desiredPosition = onFootLookTarget + worldRotation * new Vector3(0f, 0f, -orbitDistance * currentScale);
+                float onFootFollowSpeed = 30f;
+                transform.position = Vector3.Lerp(transform.position, desiredPosition, Time.deltaTime * onFootFollowSpeed);
                 transform.rotation = Quaternion.Lerp(
                     transform.rotation,
                     Quaternion.LookRotation(onFootLookTarget - transform.position, Vector3.up),
-                    Time.deltaTime * followSpeed);
+                    Time.deltaTime * onFootFollowSpeed);
                 return;
             }
 

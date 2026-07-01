@@ -137,81 +137,6 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
---- !u!1 &1455575974912246579
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 7437151794488499838}
-  - component: {fileID: 5687684175714173226}
-  - component: {fileID: 6916787023558884873}
-  m_Layer: 0
-  m_Name: Background
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!224 &7437151794488499838
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1455575974912246579}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 4129236943664601733}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
-  m_Pivot: {x: 0.5, y: 0.5}
---- !u!222 &5687684175714173226
-CanvasRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1455575974912246579}
-  m_CullTransparentMesh: 1
---- !u!114 &6916787023558884873
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1455575974912246579}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
-  m_Material: {fileID: 0}
-  m_Color: {r: 0.1, g: 0.1, b: 0.1, a: 0.8}
-  m_RaycastTarget: 1
-  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
-  m_Maskable: 1
-  m_OnCullStateChanged:
-    m_PersistentCalls:
-      m_Calls: []
-  m_Sprite: {fileID: 0}
-  m_Type: 0
-  m_PreserveAspect: 0
-  m_FillCenter: 1
-  m_FillMethod: 4
-  m_FillAmount: 1
-  m_FillClockwise: 1
-  m_FillOrigin: 0
-  m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 1
 --- !u!1 &2304657776530783553
 GameObject:
   m_ObjectHideFlags: 0
@@ -350,6 +275,81 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!1 &5610055068515676612
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 215901193953358211}
+  - component: {fileID: 7941715664647878594}
+  - component: {fileID: 1170850761916692797}
+  m_Layer: 0
+  m_Name: Background
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &215901193953358211
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5610055068515676612}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4129236943664601733}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!222 &7941715664647878594
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5610055068515676612}
+  m_CullTransparentMesh: 1
+--- !u!114 &1170850761916692797
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5610055068515676612}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 0.1, g: 0.1, b: 0.1, a: 0.8}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 0}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
 --- !u!1 &5636302574446706865
 GameObject:
   m_ObjectHideFlags: 0
@@ -422,14 +422,13 @@ MonoBehaviour:
   gameplayTips:
   - "Treo n\xF4ng s\u1EA3n l\xEAn C\xE2y B\u1EB9o \u0111\u1EC3 thu h\xFAt nhi\u1EC1u
     th\u01B0\u01A1ng l\xE1i gh\xE9 ghe c\u1EE7a b\u1EA1n h\u01A1n."
-  - "H\xE3y di chuy\u1EC3n v\u1EC1 b\u1EBFn nh\xE0 tr\u01B0\u1EDBc 18:00 h\xE0ng
-    ng\xE0y \u0111\u1EC3 ng\u1EE7, n\u1EBFu kh\xF4ng b\u1EA1n s\u1EBD b\u1ECB ph\u1EA1t
-    ti\u1EC1n v\xEC c\u1EA3m l\u1EA1nh."
+  - "H\xE3y di chuy\u1EC3n v\u1EC1 b\u1EBFn nh\xE0 tr\u01B0\u1EDBc 20:00 \u0111\u1EC3
+    ng\u1EE7, n\u1EBFu kh\xF4ng b\u1EA1n s\u1EBD b\u1ECB ph\u1EA1t ph\xED neo \u0111\u1EADu
+    mu\u1ED9n."
   - "C\u1ECDc g\u1ED7 WoodPost \u1EDF tr\u1EA1i ghe ph\xEDa B\u1EAFc l\xE0 n\u01A1i
     gi\xFAp b\u1EA1n s\u1EEDa ch\u1EEFa v\xE0 n\xE2ng c\u1EA5p ghe bu\xF4n."
-  - "Tr\u1EA3 gi\xE1 v\u1EDBi th\u01B0\u01A1ng l\xE1i s\u1EBD ti\xEAu t\u1ED1n th\u1EC3
-    l\u1EF1c. H\xE3y \u0103n b\xFAn ri\xEAu/c\xE0 ph\xEA t\u1EEB c\xE1c ghe b\xE1n
-    d\u1EA1o \u0111\u1EC3 ph\u1EE5c h\u1ED3i s\u1EE9c."
+  - "N\u1EBFu C\xE2y B\u1EB9o tr\u1ED1ng trong bu\u1ED5i s\xE1ng, thuy\u1EC1n kh\xE1ch
+    s\u1EBD l\u01B0\u1EDBt qua m\xE0 kh\xF4ng gh\xE9 mua h\xE0ng."
   - "Th\u01B0\u01A1ng l\xE1i l\u1EDBn mua s\u1EC9 s\u1ED1 l\u01B0\u1EE3ng nhi\u1EC1u,
     c\xF2n d\xE2n l\xE0ng mua l\u1EBB gi\xE1 cao nh\u01B0ng s\u1ED1 l\u01B0\u1EE3ng
     \xEDt."
@@ -648,7 +647,7 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 7437151794488499838}
+  - {fileID: 215901193953358211}
   - {fileID: 9102806661374753339}
   m_Father: {fileID: 1184841908372835254}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

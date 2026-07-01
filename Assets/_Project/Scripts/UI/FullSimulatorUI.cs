@@ -2622,9 +2622,18 @@ namespace ChoNoi.UI
             var boarding = FindAnyObjectByType<BoatBoardingController>();
             if (boarding != null)
             {
+                Vector3 playerStartPos = new Vector3(92f, 4.25f, 25f);
+                Quaternion playerStartRot = Quaternion.Euler(0f, 80f, 0f);
+
+                GameObject du08 = GameObject.Find("DU08");
+                if (du08 != null && UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "ChoNoiMain")
+                {
+                    playerStartPos = du08.transform.position;
+                }
+
                 boarding.ResetToStartingState(
-                    new Vector3(92f, 4.25f, 25f),
-                    Quaternion.Euler(0f, 80f, 0f),
+                    playerStartPos,
+                    playerStartRot,
                     new Vector3(118f, 3.75f, 34f),
                     Quaternion.identity
                 );

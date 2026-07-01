@@ -854,17 +854,19 @@ namespace ChoNoiMienTay.Editor
             player.transform.SetParent(parent);
             player.transform.position = new Vector3(92f, 4.25f, 25f);
             player.transform.rotation = Quaternion.Euler(0f, 80f, 0f);
+            player.transform.localScale = Vector3.one;
 
             CharacterController controller = player.AddComponent<CharacterController>();
-            controller.height = 1.8f;
-            controller.radius = 0.35f;
-            controller.center = new Vector3(0f, 0.9f, 0f);
+            controller.height = 9.0f;
+            controller.radius = 1.75f;
+            controller.center = new Vector3(0f, 4.5f, 0f);
 
             ShorePlayerController shoreController = player.AddComponent<ShorePlayerController>();
             player.AddComponent<PlayerNpcTradeInteractor>();
 
             GameObject visualRoot = new GameObject("PlayerVisualRoot");
             visualRoot.transform.SetParent(player.transform, false);
+            visualRoot.transform.localScale = new Vector3(5f, 5f, 5f);
 
             GameObject playerModelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(NpcModel1Path);
             if (playerModelPrefab != null)
@@ -875,7 +877,7 @@ namespace ChoNoiMienTay.Editor
                     model.name = "PlayerModel";
                     model.transform.SetParent(visualRoot.transform, false);
                     model.transform.localPosition = Vector3.zero;
-                    model.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+                    model.transform.localRotation = Quaternion.Euler(0f, 0f, 0f);
                     model.transform.localScale = Vector3.one;
                     DisableColliders(model);
                     CleanImportedModel(model);

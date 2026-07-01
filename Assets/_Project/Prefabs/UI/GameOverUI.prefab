@@ -379,10 +379,10 @@ PrefabInstance:
       addedObject: {fileID: 138305044679972106}
     - targetCorrespondingSourceObject: {fileID: 6274226809611728947, guid: 22e6c3e663fa8ae48b784dc1698efd6f, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 8075501278313498330}
+      addedObject: {fileID: 6750764130357015358}
     - targetCorrespondingSourceObject: {fileID: 6274226809611728947, guid: 22e6c3e663fa8ae48b784dc1698efd6f, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 6750764130357015358}
+      addedObject: {fileID: 4865262598705366788}
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 117464273035754390, guid: 22e6c3e663fa8ae48b784dc1698efd6f, type: 3}
       insertIndex: -1
@@ -407,8 +407,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ChoNoiMienTay.UI.GameOverUI
   gameOverPanel: {fileID: 2104222376060991120}
   messageText: {fileID: 6651453523376851003}
-  retryButton: {fileID: 5889982129295592880}
-  mainMenuButton: {fileID: 8936006012459432020}
+  retryButton: {fileID: 8936006012459432020}
+  mainMenuButton: {fileID: 7073035861995359342}
 --- !u!1 &2104222376060991120 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 815743675078188179, guid: 22e6c3e663fa8ae48b784dc1698efd6f, type: 3}
@@ -419,7 +419,7 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 6274226809611728947, guid: 22e6c3e663fa8ae48b784dc1698efd6f, type: 3}
   m_PrefabInstance: {fileID: 1612756606930758147}
   m_PrefabAsset: {fileID: 0}
---- !u!1001 &6231996238046534455
+--- !u!1001 &5212658409419484941
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -520,15 +520,15 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 9b797b6bff75ba94598021316c2c253d, type: 3}
---- !u!224 &6750764130357015358 stripped
+--- !u!224 &4865262598705366788 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 852297136936937481, guid: 9b797b6bff75ba94598021316c2c253d, type: 3}
-  m_PrefabInstance: {fileID: 6231996238046534455}
+  m_PrefabInstance: {fileID: 5212658409419484941}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &8936006012459432020 stripped
+--- !u!114 &7073035861995359342 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 3062286740253549411, guid: 9b797b6bff75ba94598021316c2c253d, type: 3}
-  m_PrefabInstance: {fileID: 6231996238046534455}
+  m_PrefabInstance: {fileID: 5212658409419484941}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 0}
   m_Enabled: 1
@@ -536,7 +536,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
---- !u!1001 &8917696923287400147
+--- !u!1001 &6231996238046534455
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -637,10 +637,15 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 9b797b6bff75ba94598021316c2c253d, type: 3}
---- !u!114 &5889982129295592880 stripped
+--- !u!224 &6750764130357015358 stripped
+RectTransform:
+  m_CorrespondingSourceObject: {fileID: 852297136936937481, guid: 9b797b6bff75ba94598021316c2c253d, type: 3}
+  m_PrefabInstance: {fileID: 6231996238046534455}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &8936006012459432020 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 3062286740253549411, guid: 9b797b6bff75ba94598021316c2c253d, type: 3}
-  m_PrefabInstance: {fileID: 8917696923287400147}
+  m_PrefabInstance: {fileID: 6231996238046534455}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 0}
   m_Enabled: 1
@@ -648,8 +653,3 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
---- !u!224 &8075501278313498330 stripped
-RectTransform:
-  m_CorrespondingSourceObject: {fileID: 852297136936937481, guid: 9b797b6bff75ba94598021316c2c253d, type: 3}
-  m_PrefabInstance: {fileID: 8917696923287400147}
-  m_PrefabAsset: {fileID: 0}

@@ -171,10 +171,12 @@ public class SceneAnnotationEditor : Editor
     {
         if (!isLoaded)
         {
-            EditorApplication.delayCall += AutoSelectFirstItem;
+            if (!EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                EditorApplication.delayCall += AutoSelectFirstItem;
+            }
             isLoaded = true;
         }
-        
     }
 
     static void AutoSelectFirstItem()

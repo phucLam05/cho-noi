@@ -53,6 +53,13 @@ namespace ChoNoi.Presentation.Player
                 return;
             }
 
+            float currentScale = 1f;
+            Transform visual = transform.Find("PlayerVisualRoot");
+            if (visual != null)
+            {
+                currentScale = visual.localScale.y;
+            }
+
             Vector2 input = ReadMoveInput();
             if (cameraTransform == null && Camera.main != null)
                 cameraTransform = Camera.main.transform;
@@ -65,15 +72,16 @@ namespace ChoNoi.Presentation.Player
             Vector3 move = GetCameraRelativeMove(input);
             move = Vector3.ClampMagnitude(move, 1f);
 
+            Vector3 movementVelocity = Vector3.zero;
             if (move.sqrMagnitude > 0.001f)
             {
-                float speed = walkSpeed;
+                float speed = walkSpeed * currentScale;
                 if (Keyboard.current?.leftShiftKey.isPressed == true)
                     speed *= sprintMultiplier;
 
                 Quaternion targetRotation = Quaternion.LookRotation(move, Vector3.up);
                 transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
-                characterController.Move(move * speed * Time.deltaTime);
+                movementVelocity = move * speed;
 
                 PlayAnimation("Walking");
             }
@@ -87,7 +95,7 @@ namespace ChoNoi.Presentation.Player
                 coyoteTimer = coyoteTime;
 
                 if (verticalVelocity.y < 0f)
-                    verticalVelocity.y = -1.5f;
+                    verticalVelocity.y = -1.5f * currentScale;
             }
             else
             {
@@ -96,13 +104,15 @@ namespace ChoNoi.Presentation.Player
 
             if (jumpBufferTimer > 0f && coyoteTimer > 0f)
             {
-                verticalVelocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+                verticalVelocity.y = Mathf.Sqrt(jumpHeight * currentScale * -2f * (gravity * currentScale));
                 jumpBufferTimer = 0f;
                 coyoteTimer = 0f;
             }
 
-            verticalVelocity.y += gravity * Time.deltaTime;
-            characterController.Move(verticalVelocity * Time.deltaTime);
+            verticalVelocity.y += gravity * currentScale * Time.deltaTime;
+            
+            Vector3 combinedMove = (movementVelocity + verticalVelocity) * Time.deltaTime;
+            characterController.Move(combinedMove);
         }
 
         private void PlayAnimation(string stateName)

@@ -87,6 +87,28 @@ namespace ChoNoiMienTay.Editor
                 return;
             }
 
+            GameObject du08 = FindSceneObject(scene, "DU08");
+            if (du08 != null)
+            {
+                playerOnFoot.transform.position = du08.transform.position;
+                playerOnFoot.transform.localScale = Vector3.one;
+                
+                CharacterController cc = playerOnFoot.GetComponent<CharacterController>();
+                if (cc != null)
+                {
+                    cc.height = 9.0f;
+                    cc.radius = 1.75f;
+                    cc.center = new Vector3(0f, 4.5f, 0f);
+                }
+
+                Transform visual = playerOnFoot.transform.Find("PlayerVisualRoot");
+                if (visual != null)
+                {
+                    visual.localScale = new Vector3(5f, 5f, 5f);
+                }
+                Debug.Log($"[FinalSceneBuilder] Spawned player at DU08 position: {du08.transform.position} with scale 5");
+            }
+
             TimeManager timeManager = systemsRoot.GetComponent<TimeManager>();
             PlayerStats playerStats = systemsRoot.GetComponent<PlayerStats>();
             InventoryManager inventoryManager = systemsRoot.GetComponent<InventoryManager>();
