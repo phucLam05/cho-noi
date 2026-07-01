@@ -259,12 +259,66 @@ namespace ChoNoiMienTay.Editor
                 }
             }
 
+            ApplyChoNoiMainLandMode(scene, playerBoat, boardingController, boatController, boatInput, dismountPoint);
+
             EditorUtility.SetDirty(systemsRoot);
             EditorUtility.SetDirty(playerBoat);
             EditorUtility.SetDirty(playerOnFoot);
             if (masterCanvas != null)
             {
                 EditorUtility.SetDirty(masterCanvas);
+            }
+        }
+
+        private static void ApplyChoNoiMainLandMode(
+            Scene scene,
+            GameObject playerBoat,
+            BoatBoardingController boardingController,
+            BoatController boatController,
+            PCBoatInput boatInput,
+            Transform dismountPoint)
+        {
+            if (scene.name != "ChoNoiMain" || playerBoat == null)
+                return;
+
+            Transform boatVisualRoot = playerBoat.transform.Find("BoatVisualRoot");
+            if (boatVisualRoot != null)
+            {
+                boatVisualRoot.gameObject.SetActive(false);
+            }
+
+            foreach (Collider collider in playerBoat.GetComponentsInChildren<Collider>(true))
+            {
+                collider.enabled = false;
+            }
+
+            Rigidbody boatRigidbody = playerBoat.GetComponent<Rigidbody>();
+            if (boatRigidbody != null)
+            {
+                boatRigidbody.linearVelocity = Vector3.zero;
+                boatRigidbody.angularVelocity = Vector3.zero;
+                boatRigidbody.isKinematic = true;
+                boatRigidbody.detectCollisions = false;
+            }
+
+            if (boatController != null)
+            {
+                boatController.enabled = false;
+            }
+
+            if (boatInput != null)
+            {
+                boatInput.enabled = false;
+            }
+
+            if (boardingController != null)
+            {
+                boardingController.enabled = false;
+            }
+
+            if (dismountPoint != null)
+            {
+                dismountPoint.gameObject.SetActive(false);
             }
         }
 

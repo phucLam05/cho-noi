@@ -880,6 +880,37 @@ namespace ChoNoiMienTay.Editor
                     DisableColliders(model);
                     CleanImportedModel(model);
 
+                    // Assign Character_1 textures explicitly so the player model does not stay flat gray in URP.
+                    var skinnedRenderer = model.GetComponentInChildren<SkinnedMeshRenderer>();
+                    if (skinnedRenderer != null)
+                    {
+                        Material sourceMat = skinnedRenderer.sharedMaterial;
+                        if (sourceMat != null)
+                        {
+                            string texturePath = "Assets/_Project/Animation/Character_1/Textures/Image_0.jpg";
+                            Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+                            if (texture != null)
+                            {
+                                Material instanceMat = new Material(sourceMat);
+                                instanceMat.mainTexture = texture;
+                                if (instanceMat.HasProperty("_BaseMap"))
+                                {
+                                    instanceMat.SetTexture("_BaseMap", texture);
+                                }
+
+                                string normalPath = "Assets/_Project/Animation/Character_1/Textures/Image_2.jpg";
+                                Texture2D normalTex = AssetDatabase.LoadAssetAtPath<Texture2D>(normalPath);
+                                if (normalTex != null)
+                                {
+                                    instanceMat.SetTexture("_BumpMap", normalTex);
+                                    instanceMat.EnableKeyword("_NORMALMAP");
+                                }
+
+                                skinnedRenderer.sharedMaterial = instanceMat;
+                            }
+                        }
+                    }
+
                     // Setup Animator component
                     Animator animator = model.GetComponent<Animator>();
                     if (animator == null)

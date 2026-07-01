@@ -46,6 +46,13 @@ namespace ChoNoi.Presentation.Player
 
         private void Start()
         {
+            if (playerController == null)
+                playerController = GetComponent<ShorePlayerController>();
+            if (npcTradeInteractor == null)
+                npcTradeInteractor = GetComponent<PlayerNpcTradeInteractor>();
+            if (followCamera == null && Camera.main != null)
+                followCamera = Camera.main.GetComponent<BoatFollowCamera>();
+
             SetBoatControl(false);
             if (followCamera != null)
                 followCamera.Configure(transform);
