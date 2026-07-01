@@ -799,7 +799,7 @@ namespace ChoNoiMienTay.Editor
             SetPrivate(ambient, "bobSpeed", 0.35f);
         }
 
-        private static GameObject BuildBoat(Transform parent, BoatStats boatStats, Transform waterSurface)
+        internal static GameObject BuildBoat(Transform parent, BoatStats boatStats, Transform waterSurface)
         {
             GameObject boat = new GameObject("PlayerBoat");
             boat.transform.SetParent(parent);
@@ -848,7 +848,7 @@ namespace ChoNoiMienTay.Editor
             return boat;
         }
 
-        private static GameObject BuildShorePlayer(Transform parent, GameObject boat)
+        internal static GameObject BuildShorePlayer(Transform parent, GameObject boat)
         {
             GameObject player = new GameObject("PlayerOnFoot");
             player.transform.SetParent(parent);
@@ -923,7 +923,7 @@ namespace ChoNoiMienTay.Editor
             return player;
         }
 
-        private static void SetupBoardingFlow(GameObject player, GameObject boat, BoatFollowCamera followCamera)
+        internal static void SetupBoardingFlow(GameObject player, GameObject boat, BoatFollowCamera followCamera)
         {
             if (player == null || boat == null)
                 return;
@@ -946,7 +946,7 @@ namespace ChoNoiMienTay.Editor
                 followCamera);
         }
 
-        private static void SetupBoatVisualModules(BoatCampManager boatCampManager, Transform boat)
+        internal static void SetupBoatVisualModules(BoatCampManager boatCampManager, Transform boat)
         {
             Transform visualRoot = boat.Find("BoatVisualRoot");
             if (visualRoot == null) return;

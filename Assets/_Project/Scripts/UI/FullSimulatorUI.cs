@@ -14,6 +14,7 @@ using ChoNoiMienTay.Systems;
 using ChoNoiMienTay.UI;
 using ChoNoiMienTay.Data;
 using TMPro;
+using UnityEngine.SceneManagement;
 
 namespace ChoNoi.UI
 {
@@ -58,6 +59,9 @@ namespace ChoNoi.UI
         private Button topSettingsButton;
         private bool wasOpenedFromPause = false;
         private bool isInGameplay = false;
+        private Coroutine splashSequenceCoroutine;
+        [SerializeField] private bool skipSplashAndHomeOnPlay = false;
+        [SerializeField] private bool autoContinueOnPlay = false;
         
         // Settings states
         private float soundVolume = 1f;
@@ -171,6 +175,8 @@ namespace ChoNoi.UI
 
         private void Start()
         {
+            ApplySceneSpecificStartupOverrides();
+
             if (bambooPoleManager == null)
             {
                 var boat = GameObject.Find("PlayerBoat");
@@ -263,6 +269,11 @@ namespace ChoNoi.UI
 
         private void Update()
         {
+            if (isInGameplay)
+            {
+                ForceHideMenuOverlays();
+            }
+
             // Detect if player is boarded
             var boarding = FindAnyObjectByType<BoatBoardingController>();
             bool isBoarded = boarding != null && boarding.IsBoarded;
@@ -2545,11 +2556,31 @@ namespace ChoNoi.UI
 
             homePanel.SetActive(false);
             splashPanel.SetActive(true);
-            
+
+            if (skipSplashAndHomeOnPlay)
+            {
+                splashPanel.SetActive(false);
+                homePanel.SetActive(false);
+
+                var autoStartSaveManager = FindAnyObjectByType<ChoNoi.Infrastructure.SaveLoadManager>();
+                bool autoStartHasSave = autoStartSaveManager != null && autoStartSaveManager.HasSaveFile;
+
+                if (autoContinueOnPlay && autoStartHasSave)
+                {
+                    ClickContinue();
+                }
+                else
+                {
+                    ClickNewGame();
+                }
+
+                return;
+            }
+
             SetGameplayUiActive(false);
             Time.timeScale = 0f;
             UpdateCursorState();
-            StartCoroutine(SplashSequence());
+            splashSequenceCoroutine = StartCoroutine(SplashSequence());
         }
 
         private System.Collections.IEnumerator SplashSequence()
@@ -2624,7 +2655,13 @@ namespace ChoNoi.UI
 
         private void StartGame()
         {
-            if (homePanel != null) homePanel.SetActive(false);
+            if (splashSequenceCoroutine != null)
+            {
+                StopCoroutine(splashSequenceCoroutine);
+                splashSequenceCoroutine = null;
+            }
+
+            CloseBlockingPanelsForGameplayStart();
             
             var playerController = FindAnyObjectByType<ShorePlayerController>();
             if (playerController != null)
@@ -2651,6 +2688,16 @@ namespace ChoNoi.UI
             }
         }
 
+        private void ApplySceneSpecificStartupOverrides()
+        {
+            Scene activeScene = SceneManager.GetActiveScene();
+            if (activeScene.name != "ChoNoiMain")
+                return;
+
+            skipSplashAndHomeOnPlay = true;
+            autoContinueOnPlay = false;
+        }
+
         private void SetGameplayUiActive(bool active)
         {
             if (topTutorialButton != null) topTutorialButton.gameObject.SetActive(active);
@@ -2670,30 +2717,46 @@ namespace ChoNoi.UI
                 if (legacyHud == null)
                     continue;
 
+                if (hudCtrl != null && legacyHud == hudCtrl)
+                    continue;
+
                 legacyHud.enabled = false;
                 legacyHud.gameObject.SetActive(false);
             }
+        }
 
-            if (masterCanvasInstance == null)
-                return;
+        private void CloseBlockingPanelsForGameplayStart()
+        {
+            if (splashPanel != null) splashPanel.SetActive(false);
+            if (homePanel != null) homePanel.SetActive(false);
+            if (pausePanel != null) pausePanel.SetActive(false);
+            if (settingsPanel != null) settingsPanel.SetActive(false);
+            if (tutorialPanel != null) tutorialPanel.SetActive(false);
+            if (marketingPanel != null) marketingPanel.SetActive(false);
+            if (dialoguePanel != null) dialoguePanel.SetActive(false);
+            if (tradeQuantityPanel != null) tradeQuantityPanel.SetActive(false);
+            if (boatYardPanel != null) boatYardPanel.SetActive(false);
 
-            Transform hudRoot = masterCanvasInstance.transform.Find("HUD");
-            if (hudRoot != null)
+            if (settingsUI != null)
             {
-                hudRoot.gameObject.SetActive(false);
+                if (settingsUI.SettingsPanel != null) settingsUI.SettingsPanel.SetActive(false);
+                if (settingsUI.PausePanel != null) settingsUI.PausePanel.SetActive(false);
             }
 
-            Transform timePanel = masterCanvasInstance.transform.Find("HUD/TimePanel");
-            if (timePanel != null)
-            {
-                timePanel.gameObject.SetActive(false);
-            }
+            if (invUI != null) invUI.gameObject.SetActive(false);
+            if (diaUI != null) diaUI.gameObject.SetActive(false);
+            if (trUI != null) trUI.gameObject.SetActive(false);
+            if (daySumUI != null) daySumUI.gameObject.SetActive(false);
+            if (confUI != null) confUI.gameObject.SetActive(false);
+            if (loadUI != null) loadUI.gameObject.SetActive(false);
+            if (transUI != null) transUI.gameObject.SetActive(false);
+            if (goUI != null) goUI.gameObject.SetActive(false);
+        }
 
-            Transform moneyPanel = masterCanvasInstance.transform.Find("HUD/MoneyPanel");
-            if (moneyPanel != null)
-            {
-                moneyPanel.gameObject.SetActive(false);
-            }
+        private void ForceHideMenuOverlays()
+        {
+            if (splashPanel != null && splashPanel.activeSelf) splashPanel.SetActive(false);
+            if (homePanel != null && homePanel.activeSelf) homePanel.SetActive(false);
         }
 
         private void ChangeVolume(float value)

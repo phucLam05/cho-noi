@@ -9,6 +9,8 @@
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 using ChoNoiMienTay.Presentation;
 
 namespace ChoNoiMienTay.Editor
@@ -35,8 +37,8 @@ namespace ChoNoiMienTay.Editor
             if (Object.FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
             {
                 GameObject eventSystem = new GameObject("EventSystem");
-                eventSystem.AddComponent<UnityEngine.EventSystems.EventSystem>();
-                eventSystem.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+                eventSystem.AddComponent<EventSystem>();
+                eventSystem.AddComponent<InputSystemUIInputModule>();
             }
 
             // 2. Tạo Panel Kho đồ (Inventory UI)

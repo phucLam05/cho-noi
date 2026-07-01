@@ -102,10 +102,6 @@ namespace ChoNoiMienTay.UI
             if (durabilityManager == null) durabilityManager = FindAnyObjectByType<DurabilityManager>();
 
             BuildUIIfNeeded();
-            if (canvas != null)
-            {
-                canvas.gameObject.SetActive(false);
-            }
             SubscribeEvents();
             RefreshAll();
         }

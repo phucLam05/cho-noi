@@ -3,6 +3,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 using ChoNoiMienTay.Presentation;
 using ChoNoiMienTay.Infrastructure;
 
@@ -25,11 +26,7 @@ namespace ChoNoiMienTay.Editor
             {
                 GameObject eventSystem = new GameObject("EventSystem");
                 eventSystem.AddComponent<EventSystem>();
-#if ENABLE_INPUT_SYSTEM
-                eventSystem.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
-#else
-                eventSystem.AddComponent<StandaloneInputModule>();
-#endif
+                eventSystem.AddComponent<InputSystemUIInputModule>();
             }
 
             // 3. Tạo Managers

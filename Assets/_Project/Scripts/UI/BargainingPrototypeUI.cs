@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 using ChoNoiMienTay.Data;
 using ChoNoiMienTay.Infrastructure;
@@ -541,11 +542,7 @@ namespace ChoNoiMienTay.UI
             }
 
             GameObject eventSystemObject = new GameObject("EventSystem", typeof(EventSystem));
-#if ENABLE_INPUT_SYSTEM
-            eventSystemObject.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
-#else
-            eventSystemObject.AddComponent<StandaloneInputModule>();
-#endif
+            eventSystemObject.AddComponent<InputSystemUIInputModule>();
         }
 
         private GameObject CreatePanel(string name, Transform parent, Color color)
