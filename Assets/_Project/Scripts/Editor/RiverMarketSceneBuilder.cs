@@ -209,7 +209,14 @@ namespace ChoNoiMienTay.Editor
             }
 
             SetPrivate(profile, "lightColorOverDay", BuildGradient());
-            SetPrivate(profile, "lightIntensityOverDay", AnimationCurve.EaseInOut(0f, 0.25f, 1f, 1.1f));
+            SetPrivate(profile, "lightIntensityOverDay", new AnimationCurve(
+                new Keyframe(0f, 0.02f),
+                new Keyframe(0.18f, 0.18f),
+                new Keyframe(0.28f, 0.55f),
+                new Keyframe(0.5f, 1f),
+                new Keyframe(0.75f, 0.45f),
+                new Keyframe(0.84f, 0.15f),
+                new Keyframe(1f, 0.02f)));
             SetPrivate(profile, "sunPitchOverDay", new AnimationCurve(
                 new Keyframe(0f, -20f),
                 new Keyframe(0.25f, 25f),
@@ -217,11 +224,8 @@ namespace ChoNoiMienTay.Editor
                 new Keyframe(0.75f, 15f),
                 new Keyframe(1f, -30f)));
             SetPrivate(profile, "fogDensityOverDay", new AnimationCurve(
-                new Keyframe(0f, 0.035f),
-                new Keyframe(0.25f, 0.02f),
-                new Keyframe(0.5f, 0.006f),
-                new Keyframe(0.75f, 0.018f),
-                new Keyframe(1f, 0.04f)));
+                new Keyframe(0f, 0f),
+                new Keyframe(1f, 0f)));
             SetPrivate(profile, "maxWaterHeight", 3.1f);
             SetPrivate(profile, "minWaterHeight", 3.1f);
             SetPrivate(profile, "waterLevelOverDay", new AnimationCurve(
@@ -1057,11 +1061,11 @@ namespace ChoNoiMienTay.Editor
             gradient.SetKeys(
                 new[]
                 {
-                    new GradientColorKey(new Color(0.38f, 0.52f, 0.76f), 0f),
-                    new GradientColorKey(new Color(1.0f, 0.68f, 0.35f), 0.25f),
-                    new GradientColorKey(new Color(1f, 0.97f, 0.82f), 0.5f),
-                    new GradientColorKey(new Color(0.97f, 0.58f, 0.32f), 0.75f),
-                    new GradientColorKey(new Color(0.22f, 0.28f, 0.44f), 1f)
+                    new GradientColorKey(new Color(0.08f, 0.12f, 0.20f), 0f),
+                    new GradientColorKey(new Color(0.78f, 0.52f, 0.30f), 0.25f),
+                    new GradientColorKey(new Color(1f, 0.95f, 0.82f), 0.5f),
+                    new GradientColorKey(new Color(0.80f, 0.42f, 0.24f), 0.75f),
+                    new GradientColorKey(new Color(0.10f, 0.14f, 0.24f), 1f)
                 },
                 new[]
                 {
