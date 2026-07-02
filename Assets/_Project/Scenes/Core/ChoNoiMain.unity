@@ -2606,8 +2606,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dc8e5f53ab6aaa1ad8ab37af9efd6ab7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ChoNoi.Presentation.Player.ShorePlayerController
-  walkSpeed: 4.2
-  sprintMultiplier: 1.45
+  walkSpeed: 2.35
+  sprintMultiplier: 1.3
   rotationSpeed: 12
   gravity: -18
   jumpHeight: 1.35
