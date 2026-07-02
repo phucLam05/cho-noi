@@ -14,7 +14,7 @@ OcclusionCullingSettings:
 RenderSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 10
-  m_Fog: 1
+  m_Fog: 0
   m_FogColor: {r: 0.9292453, g: 0.95911235, b: 1, a: 1}
   m_FogMode: 2
   m_FogDensity: 0
@@ -37,7 +37,7 @@ RenderSettings:
   m_ReflectionBounces: 1
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
-  m_Sun: {fileID: 0}
+  m_Sun: {fileID: 5839219670521690304}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -2607,13 +2607,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ChoNoi.Presentation.Player.ShorePlayerController
   walkSpeed: 2.35
-  sprintMultiplier: 1.3
+  sprintMultiplier: 20
   rotationSpeed: 12
   gravity: -18
-  jumpHeight: 1.35
+  jumpHeight: 3.5
   coyoteTime: 0.12
   jumpBufferTime: 0.15
   cameraTransform: {fileID: 0}
+  groundedStickForce: 3.5
+  groundProbeDistance: 0.45
+  groundSnapDistance: 0.35
+  slopeProjectionBlend: 0.9
 --- !u!143 &164443895
 CharacterController:
   m_ObjectHideFlags: 0
@@ -2621,7 +2625,7 @@ CharacterController:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 164443891}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 1902035216}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -11826,9 +11830,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ChoNoi.Presentation.Environment.EnvironmentController
   timeManager: {fileID: 794119612}
   profile: {fileID: 11400000, guid: e5088dad47b7c5304bf0b10605899648, type: 2}
-  directionalLight: {fileID: 0}
+  directionalLight: {fileID: 5839219670521690304}
   waterTransform: {fileID: 0}
+  runtimeSkyboxMaterial: {fileID: 2100000, guid: 26f55ddef4057d341bb944e97b32d31c, type: 2}
   rotateSun: 1
+  enableFog: 0
+  driveAmbientLighting: 1
+  driveSkybox: 1
   sunYaw: 30
   transitionSpeed: 6
   editorPreviewHour: 12
@@ -29678,6 +29686,19 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 8101256898395201125, guid: f4e4d8517c45a1a4390ceaa4221bd34e, type: 3}
   m_PrefabInstance: {fileID: 8101256900260606914}
   m_PrefabAsset: {fileID: 0}
+--- !u!134 &1902035216
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  serializedVersion: 2
+  m_DynamicFriction: 0.6
+  m_StaticFriction: 0.6
+  m_Bounciness: 0
+  m_FrictionCombine: 0
+  m_BounceCombine: 0
 --- !u!1 &1903478347
 GameObject:
   m_ObjectHideFlags: 0
@@ -34786,12 +34807,24 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8787252018466501726, guid: d52abfc05749c4eeb92e7e9896a576c8, type: 3}
+      propertyPath: m_Color.b
+      value: 0.81998414
+      objectReference: {fileID: 0}
+    - target: {fileID: 8787252018466501726, guid: d52abfc05749c4eeb92e7e9896a576c8, type: 3}
+      propertyPath: m_Color.g
+      value: 0.9499869
+      objectReference: {fileID: 0}
+    - target: {fileID: 8787252018466501726, guid: d52abfc05749c4eeb92e7e9896a576c8, type: 3}
+      propertyPath: m_Color.r
+      value: 0.99999326
+      objectReference: {fileID: 0}
+    - target: {fileID: 8787252018466501726, guid: d52abfc05749c4eeb92e7e9896a576c8, type: 3}
       propertyPath: m_Enabled
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8787252018466501726, guid: d52abfc05749c4eeb92e7e9896a576c8, type: 3}
       propertyPath: m_Intensity
-      value: 5
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8787252018466501726, guid: d52abfc05749c4eeb92e7e9896a576c8, type: 3}
       propertyPath: m_BoundingSphereOverride.w
@@ -34805,6 +34838,11 @@ PrefabInstance:
 --- !u!4 &5839219670521690303 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2190030457106887330, guid: d52abfc05749c4eeb92e7e9896a576c8, type: 3}
+  m_PrefabInstance: {fileID: 5839219670521690302}
+  m_PrefabAsset: {fileID: 0}
+--- !u!108 &5839219670521690304 stripped
+Light:
+  m_CorrespondingSourceObject: {fileID: 8787252018466501726, guid: d52abfc05749c4eeb92e7e9896a576c8, type: 3}
   m_PrefabInstance: {fileID: 5839219670521690302}
   m_PrefabAsset: {fileID: 0}
 --- !u!1 &5880784534412060249

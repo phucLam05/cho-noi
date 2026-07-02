@@ -7,10 +7,10 @@ namespace ChoNoi.Presentation.Player
     public class ShorePlayerController : MonoBehaviour
     {
         [SerializeField] private float walkSpeed = 2.35f;
-        [SerializeField] private float sprintMultiplier = 1.3f;
+        [SerializeField] private float sprintMultiplier = 20f;
         [SerializeField] private float rotationSpeed = 12f;
         [SerializeField] private float gravity = -18f;
-        [SerializeField] private float jumpHeight = 1.35f;
+        [SerializeField] private float jumpHeight = 3.5f;
         [SerializeField] private float coyoteTime = 0.12f;
         [SerializeField] private float jumpBufferTime = 0.15f;
         [SerializeField] private Transform cameraTransform;
@@ -95,23 +95,19 @@ namespace ChoNoi.Presentation.Player
 
             Vector3 move = GetCameraRelativeMove(input);
             move = Vector3.ClampMagnitude(move, 1f);
+            bool isMoving = move.sqrMagnitude > 0.001f;
+            bool isSprinting = isMoving && Keyboard.current?.leftShiftKey.isPressed == true;
 
             Vector3 movementVelocity = Vector3.zero;
-            if (move.sqrMagnitude > 0.001f)
+            if (isMoving)
             {
                 float speed = walkSpeed;
-                if (Keyboard.current?.leftShiftKey.isPressed == true)
+                if (isSprinting)
                     speed *= sprintMultiplier;
 
                 Quaternion targetRotation = Quaternion.LookRotation(move, Vector3.up);
                 transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
                 movementVelocity = move * speed;
-
-                PlayAnimation("Walking");
-            }
-            else
-            {
-                PlayAnimation("Neutral Idle");
             }
 
             bool isGrounded = IsGrounded(out RaycastHit groundHit);
@@ -151,6 +147,16 @@ namespace ChoNoi.Presentation.Player
 
             if (!jumpedThisFrame)
                 SnapToGround();
+
+            bool isAirborne = jumpedThisFrame || verticalVelocity.y > 0.1f || !isGrounded;
+            if (isAirborne)
+                PlayAnimation("Jumping");
+            else if (isSprinting)
+                PlayAnimation("Running");
+            else if (isMoving)
+                PlayAnimation("Walking");
+            else
+                PlayAnimation("Neutral Idle");
         }
 
         private void PlayAnimation(string stateName)
@@ -163,8 +169,13 @@ namespace ChoNoi.Presentation.Player
 
             if (currentAnimState != stateName)
             {
+                int stateHash = Animator.StringToHash(stateName);
+                if (!animator.HasState(0, stateHash))
+                    return;
+
                 currentAnimState = stateName;
-                animator.CrossFadeInFixedTime(stateName, 0.15f);
+                float transitionDuration = stateName == "Jumping" ? 0.08f : 0.12f;
+                animator.CrossFadeInFixedTime(stateHash, transitionDuration);
             }
         }
 
